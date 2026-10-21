@@ -1,0 +1,11 @@
+{
+  "name": "hanger-hustle-price-scout",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Box-side price scout for Hanger Hustle: reads the app's JSON export, writes comps JSON keyed by SKU for the app's 'Import comps by SKU'. Official APIs only.",
+  "main": "scout.js",
+  "bin": { "price-scout": "scout.js" },
+  "scripts": { "test": "node test/mock-test.js" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
