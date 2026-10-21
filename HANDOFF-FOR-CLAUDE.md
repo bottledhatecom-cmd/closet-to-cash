@@ -1,20 +1,23 @@
 # Hanger Hustle: handoff notes
 
-_Last updated: 2026-10-21 ~6:05 PM CT (Etsy + posting modes + FB Marketplace/Grailed as optional sites, Google client ID set, privacy/terms pages, renamed to Hanger Hustle, sw.js VERSION ctc-v3). Grok Bot keeps building here too and updates this file with every change._
+_Last updated: 2026-10-21 ~6:25 PM CT (moved to custom domain app.hangerhustle.com, assetlinks.json, 360px header fix, sw.js VERSION ctc-v4; earlier today: Etsy, posting modes, Google client ID, privacy/terms, renamed Hanger Hustle). The running decision log is HANGHUSTLE-MANUAL.md (box master: /workspace/shared-library/manuals/HangHustle-Manual.md). Grok Bot keeps building here too and updates this file with every change._
 
 ## What it is and who it's for
 - **Who:** Michael's wife sells a lot of vintage clothing. She mainly uses an **Android phone**, and it should work on iPhone too.
 - **What it does:** she photographs a piece, enters the details, and the app writes listing text for each marketplace. It tracks where each item is listed or sold, warns her to delist elsewhere once something sells, and compares sold prices and fees per site.
 - **Name:** **Hanger Hustle** (two words, title case), picked by Michael on 2026-10-21. Set in `APP_NAME`, the manifest, page titles, privacy/terms and README. Not yet screened for trademarks/app-store clashes.
   - The repo and URL stay `closet-to-cash` for now. Internal storage names also stay `closet-to-cash` (IndexedDB `closet-to-cash-db`, Drive file `closet-to-cash-inventory.json`, localStorage `ctc-*`, sw cache `ctc-vN`) so existing data keeps working. Don't rename those without a migration.
-  - **Android package ID:** `com.hangerhustle.app`. Another worker is building the Trusted Web Activity (TWA) in `/workspace/closet-android/` on Grok's box.
+  - **Android package ID:** `com.hangerhustle.app`. TWA in `/workspace/closet-android/` (config `app.config.json`: host `app.hangerhustle.com`, start `/`, versionCode 2 / 1.0.1, rebuilt ~6:32 PM CT: `dist/com.hangerhustle.app-1.0.1-2-release.aab` + `-release-signed.apk`; build with `scripts/build.sh`).
 - **Where it runs:** client-side only, no backend. Items and photos live in the phone's browser storage (IndexedDB). Google sign-in is optional and backs up to her own Google Drive.
 
 ## Where it lives
-- **Live site:** https://bottledhatecom-cmd.github.io/closet-to-cash/ (GitHub Pages from the root of `main`, HTTPS, no custom domain)
-- **Privacy policy:** https://bottledhatecom-cmd.github.io/closet-to-cash/privacy.html
-- **Terms of use:** https://bottledhatecom-cmd.github.io/closet-to-cash/terms.html
-- **Repo:** https://github.com/bottledhatecom-cmd/closet-to-cash (public)
+- **Live site:** https://app.hangerhustle.com/ (GitHub Pages custom domain, set 2026-10-21 ~6:22 PM CT; DNS at **ChangeIP**, CNAME `app` → `bottledhatecom-cmd.github.io`). The old https://bottledhatecom-cmd.github.io/closet-to-cash/ redirects there automatically (GitHub does this because of the `CNAME` file).
+  - **Browser data does not follow the move.** IndexedDB is per-origin, so anything saved on the github.io address stays there. She should back up first (Google backup or JSON export on the old address), then restore on app.hangerhustle.com. Redirects mean she may need to export before the redirect kicks in, or restore from Google Drive (Drive backup works from either origin once the new origin is authorized).
+  - Bare **hangerhustle.com** (bought 6:19 PM CT) is reserved for a future landing page; not connected.
+- **Privacy policy:** https://app.hangerhustle.com/privacy.html
+- **Terms of use:** https://app.hangerhustle.com/terms.html
+- **Android asset links:** https://app.hangerhustle.com/.well-known/assetlinks.json (repo `.well-known/assetlinks.json`, `.nojekyll` keeps the dot-folder). Copy of `/workspace/closet-android/assetlinks/assetlinks.json`; add Play's app-signing SHA-256 after the first Play upload.
+- **Repo:** https://github.com/bottledhatecom-cmd/closet-to-cash (public; `CNAME` file = `app.hangerhustle.com`)
 - **Grok's working copy:** `/workspace/vintage-lister/`; push clone `/workspace/ctc-deploy/`; tests in `/workspace/vltest/`.
 
 ## Current features
@@ -39,7 +42,7 @@ _Last updated: 2026-10-21 ~6:05 PM CT (Etsy + posting modes + FB Marketplace/Gra
 - **Inventory:** grid/list, search, filters (unlisted / listed / sold / needs delisting), sort by date or price; dashboard (items, listed, sold, revenue, profit, in stock).
 - **Value comparison per site** (all shown sites incl. Etsy/FB/Grailed): low/median/high sold, comp count, optional fee overrides; payout at asking price and at each site's median; "★ Best"; suggested price (comp-weighted median); "Search sold comps" buttons. Fee defaults (`FEE_DEFAULTS`, `FEES_CHECKED = '2026-10-21'`): eBay 13.6% + $0.40; Poshmark $2.95 under $15 / 20%; Mercari 10%; Depop 0% seller fee US + ~3.3% + $0.45 processing; Vinted 0%; **Etsy 6.5% transaction + 3% + $0.25 processing + $0.20 listing**; FB 10% shipped (min $0.80), $0 local; Grailed 6% under $120 (min $1.99) / 9% at $120+, plus 3.49% + $0.49.
 - **Backup and import:** CSV (no photos), full JSON (photos base64), JSON import that merges, comps import by SKU.
-- **Google sign-in backup:** live. `GOOGLE_CLIENT_ID = '196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com'` (Cloud project `closet-to-cash`; public ID, not a secret). The Google script is only loaded when she taps Sign in. **The OAuth consent screen is currently in Testing**, so only Google accounts added as test users can sign in, and tokens/consent expire after 7 days in Testing. Publishing it needs the privacy/terms URLs above.
+- **Google sign-in backup:** live. `GOOGLE_CLIENT_ID = '196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com'` (Cloud project `closet-to-cash`; public ID, not a secret). The Google script is only loaded when she taps Sign in. **The OAuth client needs the JavaScript origin `https://app.hangerhustle.com` added** (besides `https://bottledhatecom-cmd.github.io`) or sign-in fails on the new domain. **The OAuth consent screen is currently in Testing** (test user: her Gmail), so only Google accounts added as test users can sign in, and tokens/consent expire after 7 days in Testing. Publishing it needs the privacy/terms URLs above.
 - **Installable app (PWA):** `manifest.webmanifest` (standalone, theme #7a3a26, 192/512 icons) and `sw.js` (offline copy). Chrome reports it installable.
 
 ## Files
@@ -51,6 +54,8 @@ _Last updated: 2026-10-21 ~6:05 PM CT (Etsy + posting modes + FB Marketplace/Gra
 | `manifest.webmanifest`, `icon-180/192/512.png` | Manifest and icons |
 | `README.md` | Public description |
 | `HANDOFF-FOR-CLAUDE.md` | This file |
+| `HANGHUSTLE-MANUAL.md` | Plain-language running manual + decision log (copy of the box master) |
+| `CNAME`, `.well-known/assetlinks.json`, `.nojekyll` | Custom domain, Android asset links, keep Jekyll from hiding dot-folders |
 
 ## How it's built
 - **Settings block** at the top of the script: `APP_NAME`, `SKU_PREFIX`, image sizes, `GOOGLE_CLIENT_ID`, `GOOGLE_SCOPES`, `AUTO_BACKUP_DELAY_MS`, `POST_MODES` (`api` / `crosslist` / `prefill`), `PLATFORMS` (name, create URL, limits, `tagsMax`/`tagLen` for Etsy, `mode`, `on` default, `modeNote`), `FEES_CHECKED`, `FEE_DEFAULTS`, `COMP_SEARCH`.
@@ -67,11 +72,12 @@ _Last updated: 2026-10-21 ~6:05 PM CT (Etsy + posting modes + FB Marketplace/Gra
   - Restore (`planRestore` + `restoreFromDrive`): match by id then SKU, confirm box (add / replace / keep), download only missing photos, never deletes phone-only items.
   - Tokens: ~1h access token in localStorage `ctc-google-auth`; quiet re-request (`prompt:''`) once when visible, else "tap Back up now"; 401 ⇒ one refresh + retry; sign out revokes, keeps data.
   - Auto backup: `markDirty()` on writes, 10s debounce, immediate on hide/pagehide; can be turned off.
-- **Service worker VERSION rule:** **bump `VERSION` in `sw.js` (currently `ctc-v3`) every time `index.html` or any cached file changes.**
+- **Service worker VERSION rule:** **bump `VERSION` in `sw.js` (currently `ctc-v4`) every time `index.html` or any cached file changes.**
 
 ## How to run the tests (on Grok's box)
 - `cd /workspace/vltest && node test.js` — full UI test of the local file at 390×844 (playwright-core + `/usr/bin/google-chrome`): add item with generated photo, listing text and limits for all 6 default sites, Etsy title/tags limits, posting-mode labels, one-tap "Post to Poshmark" (copies full listing, opens create page, downloads photos, checklist, "I published it" ⇒ Listed), "Queue for bot" toggle, copy, status + delist banner, reload persistence, filters/sort, CSV/JSON export/import, comps, Google button enabled but script not loaded until tapped, privacy/terms footer links, site on/off toggles. Screenshots to `/workspace/vintage-lister/screenshots/`.
 - `node sync-test.js` — mocked Google sign-in + Drive REST (no real Google calls): sign-in, debounce, backup on hide, incremental photo skip, tombstone delete, restore merge cancel/accept, token expiry, 401 retry, sign out.
+- `node layout.js` — header check at 320/360/390/412/768px, signed out and signed in: the account pill must not cover the title.
 - `node live.js` — live site at mobile size: HTTP 200, title, no JS errors, service worker `ctc-v3` active, manifest, offline reload.
 - `node inst.js` — Chrome installability check.
 - **Last results (2026-10-21 ~6:05 PM CT):** test.js all pass; sync-test.js all pass; live check after push (see git log / Grok's report).
@@ -118,6 +124,7 @@ _Last updated: 2026-10-21 ~6:05 PM CT (Etsy + posting modes + FB Marketplace/Gra
 - **ThredUp-style consignment:** you mail items in, they price them, low payouts, no seller listing. Not a fit for curated vintage.
 
 ## Open items
+0. **Finish the domain move:** add `https://app.hangerhustle.com` to the OAuth client's JS origins; she backs up on the old address and restores on the new one.
 1. **Publish the OAuth consent screen** (now Testing): use the privacy/terms URLs above; add her Google account as a test user meanwhile.
 2. **Bot posting for eBay/Etsy/Depop:** Michael creates the eBay developer keyset and Etsy app (steps above); decide where the client secret and refresh tokens live (bot's box vs. small backend); email Depop for API access.
 3. **Let the bot read new items:** `drive.appdata` is private to this OAuth client. Options: (a) bot runs the same web app signed in as her, (b) "export for bot" file, (c) small backend. Needs a decision.

@@ -1,6 +1,6 @@
 # HangHustle Manual
 
-The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:22 PM CT**.
+The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:33 PM CT**.
 
 - Master copy: `/workspace/shared-library/manuals/HangHustle-Manual.md` (Grok's box, shared by all of Michael's bots)
 - Repo copy: [`HANGHUSTLE-MANUAL.md`](https://github.com/bottledhatecom-cmd/closet-to-cash/blob/main/HANGHUSTLE-MANUAL.md)
@@ -22,12 +22,13 @@ The running log of everything done on **Hanger Hustle**, Michael's wife's vintag
 ## 2. Links
 | What | Link |
 |---|---|
-| Live app (new home, being set up) | https://app.hangerhustle.com/ |
-| Live app (original, redirects once the domain is live) | https://bottledhatecom-cmd.github.io/closet-to-cash/ |
+| Live app | https://app.hangerhustle.com/ (HTTPS certificate pending as of 6:33 PM) |
+| Old address (now redirects to the new one) | https://bottledhatecom-cmd.github.io/closet-to-cash/ |
 | Repo | https://github.com/bottledhatecom-cmd/closet-to-cash |
 | Privacy policy | https://app.hangerhustle.com/privacy.html (was …github.io/closet-to-cash/privacy.html) |
 | Terms of use | https://app.hangerhustle.com/terms.html (was …github.io/closet-to-cash/terms.html) |
 | Landing page (future) | https://hangerhustle.com (bought 6:19 PM; not built or connected yet) |
+| Android asset links | https://app.hangerhustle.com/.well-known/assetlinks.json |
 | Technical handoff | HANDOFF-FOR-CLAUDE.md (repo root) |
 
 ## 3. Decision log
@@ -55,6 +56,8 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | 6:19 PM | **Michael bought hangerhustle.com.** He wants a landing page there once there's enough to show; it grows with the app. DNS/hosting hookup needs his OK. |
 | 6:19 PM | Michael approved moving the app to **app.hangerhustle.com** (bare hangerhustle.com reserved for the landing page). Registrar/DNS: **ChangeIP** (changeip.com). CNAME `app` → `bottledhatecom-cmd.github.io`. |
 | ~6:21 PM | Fixed: on narrow phones (360px) the "Sign in" pill covered the title. The pill now sits on its own row under 520px wide. Service worker VERSION `ctc-v4`. `.well-known/assetlinks.json` added to the repo for the Android app. |
+| ~6:22 PM | **App moved to app.hangerhustle.com:** repo `CNAME` file + GitHub Pages custom domain set; DNS check passed (CNAME found, HTTPS eligible). The old github.io address now redirects to the new one. HTTPS certificate requested from GitHub (Let's Encrypt), waiting for it before HTTPS can be enforced. |
+| ~6:32 PM | Android app rebuilt for the new host: `com.hangerhustle.app` **1.0.1 (versionCode 2)**, start URL `https://app.hangerhustle.com/`. The 1.0.0 (github.io) build is obsolete. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
@@ -73,7 +76,8 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 ## 5. Android app
 - **Folder:** `/workspace/closet-android/` on Grok's box. `README.md` there has full commands.
 - **Config:** `app.config.json` is the single source of truth (name, package, host, colors, version). Now host `app.hangerhustle.com`, start `/`, versionCode 2 / 1.0.1.
-- **Outputs (`dist/`):** `com.hangerhustle.app-<version>-release.aab` (Play upload) and `…-release-signed.apk` (sideload to her phone).
+- **Outputs (`dist/`):** current build **`com.hangerhustle.app-1.0.1-2-release.aab`** (Play upload) and **`com.hangerhustle.app-1.0.1-2-release-signed.apk`** (sideload to her phone). The 1.0.0-1 files point at the old github.io address; don't use them.
+- While the new domain has no HTTPS certificate, `buildIconBase` in app.config.json makes the build download icons/manifest from GitHub's raw file server (same files). Remove it once HTTPS works.
 - **Signing key:** `keys/hangerhustle-upload.jks` + `keys/keystore-password.txt`. **Back both up offline / in a password manager. Never share them, never commit them.** Used only for this app.
 - **Scripts:** `scripts/build.sh` (rebuild .aab/.apk + assetlinks), `scripts/rename.sh "Name" com.pkg.id` (rename + rebuild), `scripts/make_assetlinks.py <PLAY_SHA256>` (add Play's signing fingerprint after first upload).
 - **Asset links (removes the browser bar in the app):** the file must sit at the domain root. With the move to app.hangerhustle.com it lives in the repo at `.well-known/assetlinks.json` → `https://app.hangerhustle.com/.well-known/assetlinks.json`. After the first Play upload, add Play's app-signing SHA-256 and republish.
@@ -120,7 +124,11 @@ Sources: underpricedai.com/blog/best-cross-listing-apps, vylist.ai/crosslisting-
 Sources: grailed.com/about/terms; facebook.com/legal/automated_data_collection_terms; developers.whatnot.com; Vestiaire Help Center "Professional seller: Listing Solutions"; help.etsy.com "How to Use Etsy's API"; developers.etsy.com; eBay developer docs.
 
 ## 9. Open to-dos
-1. **Domain move to app.hangerhustle.com:** CNAME at ChangeIP → GitHub Pages custom domain → HTTPS certificate → enforce HTTPS; add `https://app.hangerhustle.com` to the Google OAuth client's JavaScript origins; rebuild the Android app for the new host. **Her browser data does not follow the move:** before switching, she should back up (Google backup or JSON export on the old github.io address), then restore on app.hangerhustle.com.
+1. **Finish the domain move to app.hangerhustle.com:**
+   - Wait for GitHub's HTTPS certificate, then turn on "Enforce HTTPS" (until then the app is plain http on the new address, so Google sign-in, offline mode and install don't work there).
+   - Add `https://app.hangerhustle.com` to the Google OAuth client's **Authorized JavaScript origins** (Cloud Console, project closet-to-cash).
+   - **Her browser data does not follow the move** (each web address has its own storage). The old github.io address now redirects, so anything saved only there can't be opened directly any more. If she saved items before 6:22 PM: restore them from Google Drive backup on the new address if she had signed in, otherwise ask a bot to temporarily remove the custom domain so she can export a JSON backup first.
+   - Install the new Android build (1.0.1) / re-install the home-screen app from the new address.
 2. **Landing page on hangerhustle.com:** build once there's enough content; it grows with the app. DNS/hosting hookup needs Michael's OK.
 3. **Google consent screen:** keep her as test user; publish it (privacy/terms are live) when ready. In Testing, sign-in must be renewed every 7 days.
 4. **eBay:** click the verification email; create keysets; decide where the secret and refresh token live.
