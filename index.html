@@ -188,6 +188,8 @@ details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{m
 .foot{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 24px}.foot a{color:var(--muted)}
 .top{position:relative}
 .acct-slot{position:absolute;right:0;top:calc(10px + env(safe-area-inset-top))}
+/* narrow phones (e.g. 360px): chip gets its own row so it never covers the title */
+@media (max-width:520px){.acct-slot{position:static;display:flex;justify-content:flex-end;margin:0 0 4px}.acct-slot:empty{display:none}.top h1{font-size:clamp(24px,7.6vw,30px)}}
 .acct{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--paper);border:1px solid var(--line);text-decoration:none;color:var(--ink);font:600 13px var(--sans)}
 .acct img,.acct .ini{width:30px;height:30px;border-radius:50%;object-fit:cover;background:var(--deep);color:#fff;display:inline-flex;align-items:center;justify-content:center}
 .acct .nm{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

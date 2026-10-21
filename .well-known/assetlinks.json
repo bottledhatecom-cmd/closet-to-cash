@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hangerhustle.app",
+      "sha256_cert_fingerprints": [
+        "15:03:CB:1C:07:8B:E2:EA:24:A4:E0:AD:F3:D7:19:C9:CD:DE:DA:EE:41:B3:73:89:3C:7E:3F:9C:4E:FB:68:AE"
+      ]
+    }
+  }
+]
