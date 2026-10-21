@@ -1102,13 +1102,13 @@ function downloadPhotos(){ DETAIL.files.forEach((f,i)=>setTimeout(()=>downloadBl
      delete cloud photos no longer referenced, write inventory. Backup never changes local data.
    - Restore = explicit, confirmed, additive: adds cloud-only items, replaces local items only where the
      cloud copy is newer (after confirm), never deletes local-only items. */
-const AUTH_KEY='ctc-google-auth';
+const AUTH_KEY='ctc-google-auth', CONSENT_KEY='ctc-google-consented';
 const DRIVE_API='https://www.googleapis.com/drive/v3', DRIVE_UPLOAD='https://www.googleapis.com/upload/drive/v3';
 const DRIVE_INV_NAME='closet-to-cash-inventory.json';
 class AuthNeeded extends Error{ constructor(m){ super(m||'Google sign-in needed'); this.name='AuthNeeded'; } }
 
 const Auth = {
-  token:null, exp:0, profile:null, silentTried:false,
+  token:null, exp:0, profile:null, silentTried:false, needConsent:false,
   enabled(){ return !!GOOGLE_CLIENT_ID; },
   load(){ try{ const s=JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); if(s){ this.token=s.token; this.exp=s.exp||0; this.profile=s.profile||null; } }catch(e){} },
   save(){ try{ localStorage.setItem(AUTH_KEY,JSON.stringify({token:this.token,exp:this.exp,profile:this.profile})); }catch(e){} },
@@ -1121,38 +1121,66 @@ const Auth = {
     return this._gisP=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true;
       s.onload=()=>res(); s.onerror=()=>{ this._gisP=null; rej(new Error('Could not load Google sign-in (are you offline?)')); }; document.head.appendChild(s); });
   },
-  // prompt '' = no UI if she already consented; 'consent'/'select_account' = show Google's dialog
-  async request(prompt=''){
+  /* Account choice rules (Michael, 2026-10-21 6:44 PM CT):
+     - Every sign-in she starts shows Google's account chooser (prompt 'select_account'), plus 'consent' only for the
+       first grant of drive.appdata on this device or after she declined it.
+     - Quiet token refresh uses prompt '' + login_hint = the saved email, and the returned account is checked
+       against that email; a different account is rejected (token revoked), never switched to silently. */
+  consentKnown(){ return localStorage.getItem(CONSENT_KEY)==='1'; },
+  signInPrompt(){ return (this.needConsent||!this.consentKnown()) ? 'select_account consent' : 'select_account'; },
+  async userinfo(tok){
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+tok}});
+    if(!r.ok) throw new Error('Could not read your Google profile ('+r.status+')');
+    return r.json();
+  },
+  async request(prompt='',{hint,expectEmail}={}){
     await this.loadGis();
     return new Promise((res,rej)=>{
       let done=false; const fin=(f,v)=>{ if(!done){ done=true; f(v); } };
-      const client=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID, scope:GOOGLE_SCOPES, hint:this.profile&&this.profile.email||undefined,
-        callback:r=>{ if(r.error) return fin(rej,new AuthNeeded(r.error_description||r.error));
-          if(google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r,'https://www.googleapis.com/auth/drive.appdata')) return fin(rej,new AuthNeeded('Please allow access to the app folder in Google Drive so backups can work.'));
+      const cfg={client_id:GOOGLE_CLIENT_ID, scope:GOOGLE_SCOPES,
+        callback:async r=>{ if(r.error) return fin(rej,new AuthNeeded(r.error_description||r.error));
+          if(google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r,'https://www.googleapis.com/auth/drive.appdata')){ this.needConsent=true; return fin(rej,new AuthNeeded('Please allow access to the app folder in Google Drive so backups can work (tap Sign in again).')); }
+          if(expectEmail){
+            let u=null; try{ u=await this.userinfo(r.access_token); }catch(e){ return fin(rej,new AuthNeeded(e.message)); }
+            if(!u.email||u.email.toLowerCase()!==expectEmail.toLowerCase()){
+              try{ google.accounts.oauth2.revoke(r.access_token,()=>{}); }catch(e){}
+              return fin(rej,new AuthNeeded(`Google answered with a different account (${u.email||'unknown'}). Still signed in as ${expectEmail}: tap \u201cBack up now\u201d to reconnect, or use Switch account.`)); }
+          }
           this.setToken(r.access_token,r.expires_in); fin(res,r.access_token); },
-        error_callback:e=>fin(rej,new AuthNeeded(e&&e.type==='popup_closed'?'Sign-in window closed':'Google sign-in could not open ('+((e&&(e.message||e.type))||'blocked')+')'))});
+        error_callback:e=>fin(rej,new AuthNeeded(e&&e.type==='popup_closed'?'Sign-in window closed':'Google sign-in could not open ('+((e&&(e.message||e.type))||'blocked')+')'))};
+      if(hint) cfg.login_hint=hint;
+      const client=google.accounts.oauth2.initTokenClient(cfg);
       client.requestAccessToken({prompt});
       setTimeout(()=>fin(rej,new AuthNeeded('Google sign-in timed out')),120000);
     });
   },
-  // interactive=true only from a tap (popups need a user gesture)
+  // Token for the account she already chose. interactive=true only from a tap (popups need a user gesture).
   async getToken(interactive=false){
     if(this.valid()) return this.token;
     if(!this.enabled()) throw new AuthNeeded('Google backup is not configured');
-    if(interactive) return this.request('');
-    if(!this.silentTried && document.visibilityState==='visible'){ this.silentTried=true; try{ return await this.request(''); }catch(e){} }
+    if(!this.profile) throw new AuthNeeded('Not signed in to Google');
+    const o={hint:this.profile.email, expectEmail:this.profile.email};
+    if(interactive) return this.request('',o);
+    if(!this.silentTried && document.visibilityState==='visible'){ this.silentTried=true; try{ return await this.request('',o); }catch(e){ if(/different account/.test(e.message)) throw e; } }
     throw new AuthNeeded('Google sign-in expired \u2014 tap \u201cBack up now\u201d to reconnect');
   },
+  // Sign-in she started: always the account chooser.
   async signIn(){
-    await this.request('');
-    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+this.token}});
-    if(!r.ok) throw new Error('Could not read your Google profile ('+r.status+')');
-    const u=await r.json(); this.profile={name:u.name||u.email,email:u.email,picture:u.picture||''}; this.save();
+    const tok=await this.request(this.signInPrompt());
+    const u=await this.userinfo(tok);
+    this.profile={name:u.name||u.email,email:u.email,picture:u.picture||''}; this.needConsent=false; this.save();
+    try{ localStorage.setItem(CONSENT_KEY,'1'); }catch(e){}
   },
+  clearSession(){ this.token=null; this.exp=0; this.profile=null; this.silentTried=false; try{ localStorage.removeItem(AUTH_KEY); }catch(e){} },
   signOut(){
     try{ if(this.token&&window.google&&google.accounts&&google.accounts.oauth2) google.accounts.oauth2.revoke(this.token,()=>{}); }catch(e){}
-    this.token=null; this.exp=0; this.profile=null; try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
-  }
+    this.clearSession();
+  },
+  // Switch: drop the current token (not revoked, so picking the same account again can't race a revoke) and reopen the chooser.
+  // If she closes the chooser, the previous account stays signed in.
+  async switchAccount(){ const prev={token:this.token,exp:this.exp,profile:this.profile}; this.clearSession();
+    try{ await this.signIn(); }catch(e){ Object.assign(this,prev); this.save(); e.restored=!!prev.profile; throw e; }
+    return {prev:prev.profile,now:this.profile}; }
 };
 
 /* ---- Drive REST v3 helpers ---- */
@@ -1326,7 +1354,7 @@ const fmtTime = t => t ? new Date(t).toLocaleString([], {month:'short',day:'nume
 function accountChipHTML(){
   if(!Auth.signedIn()) return Auth.enabled()?`<a class="acct" href="#/backup" id="acctChip"><span class="dot off"></span>\u2601 Sign in</a>`:'';
   const p=Auth.profile, dot={ok:'ok',idle:'ok',pending:'pend',running:'pend',error:'err',auth:'err'}[SYNC.state]||'ok';
-  return `<a class="acct" href="#/backup" id="acctChip" title="${esc(p.email)}">${p.picture?`<img src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="ini">${esc((p.name||'?')[0])}</span>`}<span class="nm">${esc((p.name||'').split(' ')[0])}</span><span class="dot ${dot}"></span></a>`;
+  return `<a class="acct" href="#/backup" id="acctChip" title="Signed in as ${esc(p.email)}" aria-label="Google account ${esc(p.email)}">${p.picture?`<img src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="ini">${esc((p.name||'?')[0])}</span>`}<span class="nm">${esc((p.name||'').split(' ')[0])}</span><span class="dot ${dot}"></span></a>`;
 }
 function updateSyncUI(){
   const chip=$('#acctSlot'); if(chip) chip.innerHTML=accountChipHTML();
@@ -1349,19 +1377,28 @@ function googleSectionHTML(){
   const p=Auth.profile;
   return `<fieldset><legend>Google account backup</legend>
     <div class="row" style="gap:12px">${p.picture?`<img class="av" src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av ini">${esc((p.name||'?')[0])}</span>`}
-      <div style="min-width:0"><b>${esc(p.name)}</b><div class="hint" style="overflow:hidden;text-overflow:ellipsis">${esc(p.email)}</div></div></div>
+      <div style="min-width:0"><div class="hint">Signed in as</div><b id="gEmail" style="display:block;overflow-wrap:anywhere;font-size:16px">${esc(p.email)}</b><div class="hint">${esc(p.name)}</div></div></div>
     <div id="gStatus" style="margin-top:10px"></div>
     <div class="pbtns"><button class="btn primary" id="gBackup">\u2601 Back up now</button><button class="btn" id="gRestore">\u2b07 Restore from Google Drive</button></div>
     <label class="row" style="margin-top:12px;font-size:14px"><input type="checkbox" id="gAuto" ${localStorage.getItem('ctc-auto-backup')!=='off'?'checked':''} style="width:22px;height:22px"> Back up automatically after changes</label>
-    <button class="btn sm ghost" id="gSignOut" style="margin-top:8px">Sign out</button>
-    <p class="note">Signing out keeps everything on this phone. Your Drive backup stays in your Google account.</p></fieldset>`;
+    <div class="pbtns" style="margin-top:8px"><button class="btn sm" id="gSwitch">⇄ Switch account</button><button class="btn sm ghost" id="gSignOut">Sign out</button></div>
+    <p class="note">Each Google account has its own backup. Switching or signing out keeps everything on this phone; each Drive backup stays in its own Google account.</p></fieldset>`;
 }
 const GOOGLE_G='<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
 function bindGoogleSection(){
-  const si=$('#gSignIn'); if(si&&!si.disabled) si.onclick=async()=>{ si.disabled=true; try{ await Auth.signIn(); toast('Signed in as '+Auth.profile.name); renderBackup(); updateSyncUI(); backupNow({reason:'auto'}); }catch(e){ toast(e.message); si.disabled=false; } };
+  const si=$('#gSignIn'); if(si&&!si.disabled) si.onclick=async()=>{ si.disabled=true; try{ await Auth.signIn(); toast('Signed in as '+Auth.profile.email); renderBackup(); updateSyncUI(); backupNow({reason:'auto'}); }catch(e){ toast(e.message); si.disabled=false; } };
   const b=$('#gBackup'); if(b) b.onclick=async()=>{ b.disabled=true; try{ const r=await backupNow({reason:'manual'}); if(r) toast(r.unchanged&&!r.uploaded?'Backup is up to date':`Backed up \u00b7 ${r.uploaded} photo(s) uploaded`); }catch(e){ toast(e.message); } b.disabled=false; };
   const r=$('#gRestore'); if(r) r.onclick=async()=>{ r.disabled=true; try{ await restoreFromDrive(); }catch(e){ toast(e.message); } r.disabled=false; };
   const a=$('#gAuto'); if(a) a.onchange=()=>{ localStorage.setItem('ctc-auto-backup',a.checked?'on':'off'); if(a.checked&&SYNC.dirty) markDirty(); };
+  const sw=$('#gSwitch'); if(sw) sw.onclick=async()=>{
+    const cur=Auth.profile&&Auth.profile.email;
+    const msg=`Switch Google account?\n\nYou're signed in as ${cur}.\n\n\u2022 Each Google account has its own separate backup.\n\u2022 Your items stay on this phone; nothing is deleted.${SYNC.dirty?`\n\u2022 Recent changes haven't been backed up to ${cur} yet. Cancel and tap \u201cBack up now\u201d first if you want them there.`:''}\n\u2022 After you pick an account, this phone's items back up to that account too${localStorage.getItem('ctc-auto-backup')==='off'?' when you tap Back up now':''}.\n\u2022 To bring another account's items onto this phone, use \u201cRestore from Google Drive\u201d after switching.`;
+    if(!confirm(msg)) return;
+    sw.disabled=true; clearTimeout(SYNC.timer); SYNC.timer=null;
+    try{ const r=await Auth.switchAccount(); SYNC.last=null; try{ await setMeta('lastBackup',null); }catch(e){}
+      setSync('idle',''); renderBackup(); updateSyncUI(); toast(r.prev&&r.prev.email===r.now.email?`Still signed in as ${r.now.email}`:`Switched to ${r.now.email}`); if(autoBackupOn()) backupNow({reason:'auto'}); }
+    catch(e){ setSync('idle',''); renderBackup(); updateSyncUI(); toast(`${e.message||'Switch cancelled'} \u2014 still signed in as ${cur}`); }
+  };
   const so=$('#gSignOut'); if(so) so.onclick=()=>{ if(!confirm('Sign out of Google? Your items stay on this phone and in your Drive backup.')) return; Auth.signOut(); clearTimeout(SYNC.timer); setSync('idle',''); renderBackup(); toast('Signed out'); };
   updateSyncUI();
 }
