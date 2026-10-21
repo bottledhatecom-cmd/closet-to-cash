@@ -22,7 +22,7 @@ The running log of everything done on **Hanger Hustle**, Michael's wife's vintag
 ## 2. Links
 | What | Link |
 |---|---|
-| Live app | https://app.hangerhustle.com/ (HTTPS certificate pending as of 6:33 PM) |
+| Live app | https://app.hangerhustle.com/ (HTTPS on, certificate issued 6:41 PM, expires 2027-01-19, GitHub renews it) |
 | Old address (now redirects to the new one) | https://bottledhatecom-cmd.github.io/closet-to-cash/ |
 | Repo | https://github.com/bottledhatecom-cmd/closet-to-cash |
 | Privacy policy | https://app.hangerhustle.com/privacy.html (was …github.io/closet-to-cash/privacy.html) |
@@ -63,6 +63,8 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | 6:34 PM | **Field issue:** on Vinted she pasted the title "Maroon Skirt" and got "Pick no more than 100 characters for the title, Title contains too many symbol characters". The words were fine; the paste most likely carried hidden characters (or the whole title + description block, which the old Post button copied as one). |
 | ~6:45 PM | **Fix for the Vinted paste issue (sw `ctc-v5`):** everything the app copies or shares is cleaned first: hidden zero-width characters, soft hyphens, direction marks and other invisible characters removed; odd spaces made normal; smart quotes/dashes made plain; repeated spaces and punctuation squashed; emoji dropped from titles. Titles are cut to each site's limit (Vinted 100, eBay 80, Poshmark 80, Mercari 80, Etsy 140, Grailed 60, FB 100; Depop has no title, its description's first line is the headline). Title and description are now copied **separately** as plain text: "Post to" copies only the title, then a "Copy description" button; every site card has visible **Copy title** / **Copy description** buttons. The counter shows the cleaned length and says "cleaned" when something will be removed. "Copy all" removed. |
 | ~6:45 PM | **Price search v1 shipped (sw `ctc-v5`):** each item has a **Find prices** button: a smart search (brand + type + era + material, size for jeans/shoes) she can edit, one-tap links to each site's **sold** results where the site has them (eBay, Poshmark, Mercari, Grailed) or regular search marked "asking prices" (Depop, Vinted, Etsy, FB); a quick panel to jot low / typical / high / how many per site; a **Suggested price** (list price per site and overall, adjusted for condition, with plain-language reasons, a take-home goal and a "Use as my price" button). Every price row is labelled Sold or Asking, where it came from, and the date. Box-side **price scout** added (`price-scout/`): eBay Browse API (asking prices) turns on when the eBay keys exist; Etsy stub waits for approval. |
+| 6:41 PM | HTTPS certificate issued for app.hangerhustle.com (GitHub had to be nudged by removing and re-adding the custom domain); **Enforce HTTPS turned on**. Verified: app, privacy, terms and `/.well-known/assetlinks.json` all load over HTTPS; Google's asset-links checker sees `com.hangerhustle.app`; service worker, offline, install check and no JS errors all pass on the new address. Old github.io links redirect to https://app.hangerhustle.com/. |
+| 6:44 PM | Android 1.0.1 (versionCode 2) rebuilt straight from https://app.hangerhustle.com (final build in `dist/`). |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
@@ -82,7 +84,6 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 - **Folder:** `/workspace/closet-android/` on Grok's box. `README.md` there has full commands.
 - **Config:** `app.config.json` is the single source of truth (name, package, host, colors, version). Now host `app.hangerhustle.com`, start `/`, versionCode 2 / 1.0.1.
 - **Outputs (`dist/`):** current build **`com.hangerhustle.app-1.0.1-2-release.aab`** (Play upload) and **`com.hangerhustle.app-1.0.1-2-release-signed.apk`** (sideload to her phone). The 1.0.0-1 files point at the old github.io address; don't use them.
-- While the new domain has no HTTPS certificate, `buildIconBase` in app.config.json makes the build download icons/manifest from GitHub's raw file server (same files). Remove it once HTTPS works.
 - **Signing key:** `keys/hangerhustle-upload.jks` + `keys/keystore-password.txt`. **Back both up offline / in a password manager. Never share them, never commit them.** Used only for this app.
 - **Scripts:** `scripts/build.sh` (rebuild .aab/.apk + assetlinks), `scripts/rename.sh "Name" com.pkg.id` (rename + rebuild), `scripts/make_assetlinks.py <PLAY_SHA256>` (add Play's signing fingerprint after first upload).
 - **Asset links (removes the browser bar in the app):** the file must sit at the domain root. With the move to app.hangerhustle.com it lives in the repo at `.well-known/assetlinks.json` → `https://app.hangerhustle.com/.well-known/assetlinks.json`. After the first Play upload, add Play's app-signing SHA-256 and republish.
@@ -145,7 +146,7 @@ These are links she taps herself; the app and the scout never load these sites.
 
 ## 9. Open to-dos
 1. **Finish the domain move to app.hangerhustle.com:**
-   - Wait for GitHub's HTTPS certificate, then turn on "Enforce HTTPS" (until then the app is plain http on the new address, so Google sign-in, offline mode and install don't work there).
+   - ~~HTTPS certificate + Enforce HTTPS~~ done 6:41 PM.
    - Add `https://app.hangerhustle.com` to the Google OAuth client's **Authorized JavaScript origins** (Cloud Console, project closet-to-cash).
    - **Her browser data does not follow the move** (each web address has its own storage). The old github.io address now redirects, so anything saved only there can't be opened directly any more. If she saved items before 6:22 PM: restore them from Google Drive backup on the new address if she had signed in, otherwise ask a bot to temporarily remove the custom domain so she can export a JSON backup first.
    - Install the new Android build (1.0.1) / re-install the home-screen app from the new address.

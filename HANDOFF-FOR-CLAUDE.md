@@ -11,7 +11,7 @@ _Last updated: 2026-10-21 ~6:45 PM CT (price search v1: Find prices, Suggested p
 - **Where it runs:** client-side only, no backend. Items and photos live in the phone's browser storage (IndexedDB). Google sign-in is optional and backs up to her own Google Drive.
 
 ## Where it lives
-- **Live site:** https://app.hangerhustle.com/ (GitHub Pages custom domain, set 2026-10-21 ~6:22 PM CT; DNS at **ChangeIP**, CNAME `app` → `bottledhatecom-cmd.github.io`). The old https://bottledhatecom-cmd.github.io/closet-to-cash/ redirects there automatically (GitHub does this because of the `CNAME` file).
+- **Live site:** https://app.hangerhustle.com/ (GitHub Pages custom domain, set 2026-10-21 ~6:22 PM CT; DNS at **ChangeIP**, CNAME `app` → `bottledhatecom-cmd.github.io`; HTTPS certificate issued and **Enforce HTTPS on** 6:41 PM CT, cert expires 2027-01-19, GitHub auto-renews). The old https://bottledhatecom-cmd.github.io/closet-to-cash/ redirects there automatically (GitHub does this because of the `CNAME` file).
   - **Browser data does not follow the move.** IndexedDB is per-origin, so anything saved on the github.io address stays there. She should back up first (Google backup or JSON export on the old address), then restore on app.hangerhustle.com. Redirects mean she may need to export before the redirect kicks in, or restore from Google Drive (Drive backup works from either origin once the new origin is authorized).
   - Bare **hangerhustle.com** (bought 6:19 PM CT) is reserved for a future landing page; not connected.
 - **Privacy policy:** https://app.hangerhustle.com/privacy.html
@@ -85,7 +85,7 @@ _Last updated: 2026-10-21 ~6:45 PM CT (price search v1: Find prices, Suggested p
 - `node sanitize-test.js` — unit test of the sanitizer extracted from index.html: zero-width/BOM, NBSP and other spaces, bidi, emoji (skin tones, flags, VS16), soft hyphen/control chars, smart quotes/dashes, punctuation runs, NFC, title limits (80, Grailed 60), descriptions keep newlines/emoji, tags.
 - `cd /workspace/vintage-lister/price-scout && node test/mock-test.js` — scout against a local mock of eBay OAuth + Browse and Etsy v3.
 - `node layout.js` — header check at 320/360/390/412/768px, signed out and signed in: the account pill must not cover the title.
-- `node live.js` — live site at mobile size: HTTP 200, title, no JS errors, service worker `ctc-v3` active, manifest, offline reload.
+- `node live.js` — live site (default https://app.hangerhustle.com/, override with LIVE_URL) at mobile size: HTTP 200, title, no JS errors, service worker `ctc-v3` active, manifest, offline reload.
 - `node inst.js` — Chrome installability check.
 - **Last results (2026-10-21 ~6:05 PM CT):** test.js all pass; sync-test.js all pass; live check after push (see git log / Grok's report).
 
