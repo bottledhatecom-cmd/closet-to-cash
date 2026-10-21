@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Closet to Cash</title>
+<meta name="theme-color" content="#7a3a26">
+<meta name="description" content="Offline vintage clothing inventory and cross-listing helper">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Closet to Cash">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237a3a26'/%3E%3Cpath d='M32 14a6 6 0 0 1 6 6c0 3-2 4-4 5l-2 1v3l20 14c2 1 1 4-1 4H13c-2 0-3-3-1-4l20-14' fill='none' stroke='%23f7efe1' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!--
+  CLOSET TO CASH - single-file, offline vintage inventory + cross-listing helper.
+
+  HONEST NOTE ON WHAT THIS DOES / DOESN'T DO:
+  - It does NOT post listings to Poshmark, eBay, Depop, Vinted or Mercari. Those marketplaces
+    don't offer public listing APIs for individual sellers (eBay has a developer Sell API, but it
+    needs a developer account, OAuth and a server - out of scope for a no-backend file).
+  - What it DOES: stores your items + photos on THIS device (IndexedDB), generates platform-tailored
+    titles/descriptions you copy-paste, lets you push photos to the marketplace app via the share
+    sheet, and tracks where each item is listed/sold so you remember to delist.
+  - Hosted copy (GitHub Pages) adds manifest.webmanifest + sw.js so it installs and opens offline.
+  - Data lives only in this browser on this device. Use Backup > "Full backup (JSON)" regularly.
+  - Fee defaults and character limits are approximations as of 2026 and change; edit them below.
+  - Comp prices are entered/pasted by you; nothing is scraped. "Search sold comps" just opens
+    each site's search page in a new tab.
+-->
+<style>
+:root{
+  --cream:#f6efe3; --paper:#fffaf2; --ink:#2d2420; --muted:#7a6a5f; --line:#e4d6c3;
+  --rust:#a24c2c; --deep:#7a3a26; --sage:#5f7a5a; --sage-bg:#e6eee1; --mustard:#c48f2c;
+  --red:#b3261e; --red-bg:#fde8e4; --gold-bg:#fbf1d9;
+  --radius:16px; --tap:48px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--cream);color:var(--ink);font:16px/1.45 var(--sans)}
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom));
+  background-image:radial-gradient(rgba(122,58,38,.05) 1px,transparent 1px);background-size:14px 14px}
+a{color:var(--deep)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:.2px;margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+.top{padding:calc(14px + env(safe-area-inset-top)) 0 6px;text-align:center}
+.top h1{font-size:30px;color:var(--deep)}
+.top .tag{margin:2px 0 0;color:var(--muted);font-family:var(--serif);font-style:italic;font-size:14px}
+.ornament{display:block;margin:6px auto 0;width:120px;height:8px;color:var(--mustard)}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;justify-content:space-between;
+  padding:calc(8px + env(safe-area-inset-top)) 14px 8px;background:rgba(246,239,227,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);margin:0 -14px 12px}
+.bar .ttl{font-family:var(--serif);font-weight:600;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;
+  min-height:var(--tap);padding:0 18px;font:600 15px var(--sans);display:inline-flex;align-items:center;justify-content:center;
+  gap:6px;text-decoration:none;cursor:pointer;touch-action:manipulation;text-align:center}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--deep);border-color:var(--deep);color:#fff}
+.btn.rust{background:var(--rust);border-color:var(--rust);color:#fff}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:42px;padding:0 14px;font-size:14px}
+.btn.danger{color:var(--red);border-color:#e9b8b2}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.5}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center}
+.stat b{display:block;font:700 20px var(--serif);color:var(--deep)}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+@media (min-width:560px){.stats{grid-template-columns:repeat(5,1fr)}}
+.alert{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:var(--red-bg);color:var(--red);
+  border:1.5px solid #f0b4aa;border-radius:14px;padding:12px 14px;font:600 15px var(--sans);margin:10px 0}
+.alert .x{font-size:20px;line-height:1}
+.alert small{display:block;font-weight:500;color:#7d2a22}
+.search{width:100%;min-height:var(--tap);border-radius:999px;border:1px solid var(--line);background:var(--paper);padding:0 18px;font-size:16px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--paper);
+  font:600 14px var(--sans);color:var(--ink);cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.warn.on{background:var(--red);border-color:var(--red)}
+.row{display:flex;gap:8px;align-items:center}
+.row.between{justify-content:space-between}
+select,input,textarea{font:16px var(--sans);color:var(--ink)}
+.sel{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 10px}
+.items{display:grid;gap:12px;margin:12px 0 20px}
+.items.grid{grid-template-columns:repeat(2,1fr)}
+@media (min-width:600px){.items.grid{grid-template-columns:repeat(3,1fr)}}
+.card{position:relative;display:block;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.card .thumb{aspect-ratio:4/5;background:#efe4d4;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card .ci{padding:8px 10px 10px}
+.sku{font:600 11px var(--sans);letter-spacing:1px;color:var(--muted)}
+.card .t{font-weight:600;font-size:14px;line-height:1.3;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.price{font:700 17px var(--serif);color:var(--deep)}
+.pchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pc{font:700 10.5px var(--sans);padding:3px 6px;border-radius:6px;border:1px solid var(--line);color:var(--muted);background:#fff}
+.pc.listed{background:var(--sage-bg);border-color:#b9cdb2;color:#35502f}
+.pc.sold{background:var(--rust);border-color:var(--rust);color:#fff}
+.pc.delist{background:var(--red-bg);border-color:#f0b4aa;color:var(--red);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 3px rgba(179,38,30,.15)}}
+.ribbon{position:absolute;top:8px;left:8px;background:var(--red);color:#fff;font:700 11px var(--sans);padding:4px 8px;border-radius:8px;letter-spacing:.5px;z-index:1}
+.ribbon.sold{background:var(--rust)}
+.items.list .card{display:flex}
+.items.list .card .thumb{width:96px;flex:0 0 96px;aspect-ratio:auto;min-height:110px}
+.items.list .card .ci{flex:1;min-width:0}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty h2{color:var(--deep);margin-bottom:6px}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(255,250,242,.97);border-top:1px solid var(--line);
+  display:flex;justify-content:space-around;align-items:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
+.nav a{flex:1;text-align:center;text-decoration:none;color:var(--muted);font:600 12px var(--sans);min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.nav a.on{color:var(--deep)}
+.nav a .i{font-size:20px;line-height:1}
+.nav a.add{flex:0 0 auto}
+.nav a.add .plus{width:58px;height:58px;border-radius:50%;background:var(--deep);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(122,58,38,.35);margin-top:-26px}
+fieldset{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin:0 0 14px;padding:12px 14px 14px;min-width:0}
+legend{font:600 16px var(--serif);color:var(--deep);padding:0 6px}
+.f{display:block;margin:10px 0 0}
+.f>span{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.f input,.f select,.f textarea,.inp{width:100%;min-height:var(--tap);border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px 12px}
+.f textarea,textarea.inp{min-height:84px;resize:vertical;line-height:1.4}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.ph{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#efe4d4}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph button{position:absolute;border:0;border-radius:999px;width:36px;height:36px;font-size:16px;background:rgba(0,0,0,.6);color:#fff}
+.ph .rm{top:4px;right:4px}.ph .cv{bottom:4px;left:4px}
+.ph .badge{position:absolute;bottom:6px;right:6px;background:var(--mustard);color:#fff;font:700 10px var(--sans);padding:2px 6px;border-radius:6px}
+.pickers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pick{position:relative;overflow:hidden}
+.pick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.sticky-save{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));padding:10px 0;background:linear-gradient(transparent,var(--cream) 35%)}
+.gallery{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -14px;padding:0 14px 6px}
+.gallery img{height:300px;max-width:80vw;object-fit:cover;border-radius:14px;scroll-snap-align:start;flex:0 0 auto;background:#efe4d4}
+.nophoto{height:160px;border-radius:14px;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);width:100%}
+.summary{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:12px 0}
+.summary h2{font-size:21px;line-height:1.25}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin-top:10px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.sec{font-size:20px;color:var(--deep);margin:22px 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+.pcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:0 0 14px;border-top:5px solid var(--pc,#999)}
+.pcard.is-delist{border-color:#f0b4aa;background:#fff6f4;box-shadow:0 0 0 3px rgba(179,38,30,.12)}
+.pcard .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pcard h3{font-size:19px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
+.seg button{border:0;background:transparent;min-height:42px;padding:0 12px;font:600 13px var(--sans);color:var(--muted)}
+.seg button.on[data-s=none]{background:#eee6da;color:var(--ink)}
+.seg button.on[data-s=listed]{background:var(--sage);color:#fff}
+.seg button.on[data-s=sold]{background:var(--rust);color:#fff}
+.lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 4px}
+.cnt{font:600 12px var(--sans);color:var(--sage);white-space:nowrap}
+.cnt.over{color:var(--red)}
+.pbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;
+  background:var(--ink);color:#fff;padding:12px 18px;border-radius:999px;font-weight:600;font-size:14px;transition:.25s;z-index:50;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.comps{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:14px}
+.ctable{width:100%;border-collapse:collapse;font-size:13px}
+.ctable th{font:600 10.5px var(--sans);text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:right;padding:6px 4px;border-bottom:1px solid var(--line)}
+.ctable th:first-child,.ctable td:first-child{text-align:left}
+.ctable td{text-align:right;padding:8px 4px;border-bottom:1px solid #f0e6d8;white-space:nowrap}
+.ctable tr.best td{background:var(--gold-bg);font-weight:700}
+.ctable tr.best td:first-child::before{content:"\2605 ";color:var(--mustard)}
+.ctable td:first-child{white-space:normal}
+.suggest{display:flex;gap:10px;align-items:center;background:var(--gold-bg);border:1px solid #ecd39a;border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.suggest b{font:700 22px var(--serif);color:var(--deep)}
+details.ce{border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:10px}
+details.ce summary{min-height:46px;display:flex;align-items:center;padding:0 12px;font-weight:600;cursor:pointer}
+details.ce .in{padding:0 12px 12px}
+.ce .g6{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ce .g6 label{font-size:11px;color:var(--muted);font-weight:600}
+.ce .g6 input{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.sbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.hint{font-size:12px;color:var(--muted)}
+code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:12px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<nav class="nav" id="nav">
+  <a href="#/" data-nav="inv"><span class="i">&#129530;</span>Inventory</a>
+  <a href="#/add" class="add" data-nav="add" aria-label="Add item"><span class="plus">+</span></a>
+  <a href="#/backup" data-nav="backup"><span class="i">&#128190;</span>Backup</a>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ===================== CONFIG (edit freely) ===================== */
+const APP_NAME = 'Closet to Cash';           // <- change the app name here
+const APP_TAGLINE = 'vintage inventory \u00b7 cross-listing helper';
+const SKU_PREFIX = 'V-';
+const IMG_MAX_PX = 1600, IMG_QUALITY = 0.8, THUMB_PX = 360;
+const DB_NAME = 'closet-to-cash-db';
+
+const TYPES = ['dress','top','blouse','jacket','coat','jeans','pants','skirt','sweater','t-shirt','shoes','bag','accessory','other'];
+const TYPE_LABEL = {'t-shirt':'T-Shirt'};
+const ERAS = ['40s','50s','60s','70s','80s','90s','Y2K','2010s','Unknown'];
+const CONDITIONS = [['nwt','New with tags'],['excellent','Excellent'],['verygood','Very good'],['good','Good'],['fair','Fair']];
+
+/* Character limits: approximations; marketplaces change these. null = no meaningful limit. */
+const PLATFORMS = {
+  poshmark:{name:'Poshmark', short:'PM', color:'#7f0353', create:'https://poshmark.com/create-listing', titleMax:80, descMax:1500},
+  ebay:    {name:'eBay',     short:'eB', color:'#0064d2', create:'https://www.ebay.com/sl/sell',      titleMax:80, descMax:null},
+  depop:   {name:'Depop',    short:'Dp', color:'#ff2300', create:'https://www.depop.com/products/create/', titleMax:null, descMax:1000},
+  vinted:  {name:'Vinted',   short:'Vt', color:'#007782', create:'https://www.vinted.com/items/new',  titleMax:100, descMax:2000},
+  mercari: {name:'Mercari',  short:'Mc', color:'#5356ee', create:'https://www.mercari.com/sell/',     titleMax:80, descMax:1000},
+};
+const PKEYS = Object.keys(PLATFORMS);
+
+/* Seller fee defaults (US, approximate, 2026). pct = % of sale, fixed = $ per order.
+   Poshmark is special: flat $2.95 under $15, 20% at $15+ (used unless you override pct/fixed). */
+const FEE_DEFAULTS = {
+  ebay:    {pct:13.6, fixed:0.40, note:'~13.6% final value fee + $0.40/order'},
+  poshmark:{pct:null, fixed:null, note:'$2.95 flat under $15, 20% at $15+'},
+  mercari: {pct:10,   fixed:0,    note:'10% selling fee'},
+  depop:   {pct:3.3,  fixed:0.45, note:'0% seller fee (US); ~3.3% + $0.45 processing'},
+  vinted:  {pct:0,    fixed:0,    note:'0% seller fee (buyer pays)'},
+};
+/* "Search sold comps" URLs. {q} = URL-encoded search terms. */
+const COMP_SEARCH = {
+  ebay:    'https://www.ebay.com/sch/i.html?_nkw={q}&LH_Sold=1&LH_Complete=1',
+  poshmark:'https://poshmark.com/search?query={q}&availability=sold_out',
+  mercari: 'https://www.mercari.com/search/?keyword={q}&status=sold_out',
+  depop:   'https://www.depop.com/search/?q={q}',
+  vinted:  'https://www.vinted.com/catalog?search_text={q}',
+};
+
+/* ===================== helpers ===================== */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { if(v===''||v==null) return null; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?null:n; };
+const money = n => (n==null||isNaN(n)) ? '\u2014' : '$'+Number(n).toFixed(2).replace(/\.00$/,'');
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : '';
+const titleCase = s => String(s||'').replace(/(^|[\s\-\/])([a-z])/g,(m,a,c)=>a+c.toUpperCase());
+const typeLabel = t => TYPE_LABEL[t] || titleCase(t||'');
+const condLabel = c => (CONDITIONS.find(x=>x[0]===c)||[,''])[1];
+const kwList = it => String(it.keywords||'').split(/[,#\n]+/).map(s=>s.trim()).filter(Boolean);
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2400); }
+
+/* ===================== IndexedDB ===================== */
+let db;
+const reqP = r => new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(!('indexedDB' in window)) return rej(new Error('IndexedDB not available in this browser'));
+    const r = indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded = () => {
+      const d=r.result;
+      d.createObjectStore('items',{keyPath:'id'});
+      d.createObjectStore('photos',{keyPath:'id'}).createIndex('itemId','itemId');
+      d.createObjectStore('meta',{keyPath:'k'});
+    };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+const os = (name,mode='readonly') => db.transaction(name,mode).objectStore(name);
+const getAllItems = () => reqP(os('items').getAll());
+const putItem = it => reqP(os('items','readwrite').put(it));
+const getMeta = k => reqP(os('meta').get(k)).then(r=>r?r.v:undefined);
+const setMeta = (k,v) => reqP(os('meta','readwrite').put({k,v}));
+// Photos are stored as ArrayBuffer + mime type (most compatible across Safari versions).
+async function getPhotos(itemId){ const ps=await reqP(os('photos').index('itemId').getAll(itemId)); return ps.sort((a,b)=>a.idx-b.idx); }
+const getAllPhotos = () => reqP(os('photos').getAll());
+const putPhoto = p => reqP(os('photos','readwrite').put(p));
+const delPhoto = id => reqP(os('photos','readwrite').delete(id));
+const photoBlob = p => new Blob([p.buf],{type:p.type||'image/jpeg'});
+async function deleteItem(id){
+  for(const p of await getPhotos(id)) await delPhoto(p.id);
+  await reqP(os('items','readwrite').delete(id));
+}
+function nextSku(){
+  return new Promise((res,rej)=>{
+    const t=db.transaction('meta','readwrite'), s=t.objectStore('meta'), g=s.get('sku');
+    let n;
+    g.onsuccess=()=>{ n=(g.result?g.result.v:0)+1; s.put({k:'sku',v:n}); };
+    t.oncomplete=()=>res(SKU_PREFIX+String(n).padStart(4,'0'));
+    t.onerror=()=>rej(t.error);
+  });
+}
+
+/* ===================== images ===================== */
+function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('Could not read image (unsupported format?)')); i.src=src; }); }
+async function resizeImage(blob,max,q){
+  const url=URL.createObjectURL(blob);
+  try{
+    const img=await loadImg(url);   // modern browsers apply EXIF orientation when drawing
+    const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*s)), h=Math.max(1,Math.round(img.naturalHeight*s));
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h);
+    let out=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
+    if(!out) out=new Blob([dataURLToBuf(c.toDataURL('image/jpeg',q)).buf],{type:'image/jpeg'});
+    c.width=c.height=0;
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsDataURL(b); });
+const blobToBuf = b => b.arrayBuffer ? b.arrayBuffer() : new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsArrayBuffer(b); });
+function dataURLToBuf(d){ const i=d.indexOf(','), h=d.slice(0,i), bin=atob(d.slice(i+1)); const u=new Uint8Array(bin.length); for(let j=0;j<bin.length;j++) u[j]=bin.charCodeAt(j); return {buf:u.buffer,type:(h.match(/data:([^;,]+)/)||[,'image/jpeg'])[1]}; }
+async function makeThumb(blob){ return blobToDataURL(await resizeImage(blob,THUMB_PX,0.72)); }
+
+/* ===================== item state ===================== */
+const defaultStatus = () => Object.fromEntries(PKEYS.map(k=>[k,{state:'none',url:''}]));
+function st(it){
+  const s=PKEYS.map(k=>(it.status&&it.status[k]&&it.status[k].state)||'none');
+  const sold=s.includes('sold'), listed=s.includes('listed');
+  return {sold,listed,needsDelist:sold&&listed,unlisted:!sold&&!listed};
+}
+const soldOn = it => PKEYS.filter(k=>it.status?.[k]?.state==='sold');
+const delistTargets = it => st(it).sold ? PKEYS.filter(k=>it.status?.[k]?.state==='listed') : [];
+const soldPrice = it => it.soldPrice!=null ? it.soldPrice : (it.price||0);
+
+/* ===================== listing generator (pure templates, no AI) ===================== */
+function eraWord(it){ if(!it.era||it.era==='Unknown') return 'Vintage'; if(it.era==='Y2K') return 'Y2K'; if(it.era==='2010s') return '2010s'; return 'Vintage '+it.era; }
+function buildTitle(it,max){
+  const kws=kwList(it).slice(0,3);
+  // [text, priority] - highest priority number is dropped first when over the limit
+  const parts=[
+    [it.condition==='nwt'?'NWT':'',6],
+    [eraWord(it),1],[it.brand||'',1],
+    ...kws.map((k,i)=>[titleCase(k),7+i]),
+    [titleCase(it.color||''),4],[titleCase(it.material||''),5],
+    [it.type==='other'?'':typeLabel(it.type),0],
+    [it.size?'Size '+it.size:'',2],
+  ].filter(p=>p[0]);
+  const join = ps => ps.map(p=>p[0]).join(' ').replace(/\s+/g,' ').trim();
+  let ps=parts.slice();
+  if(max){ while(join(ps).length>max && ps.length>1){ let wi=0; ps.forEach((p,i)=>{ if(p[1]>=ps[wi][1]) wi=i; }); ps.splice(wi,1); } }
+  let t=join(ps);
+  if(max && t.length>max) t=t.slice(0,max).trim();
+  return t;
+}
+const isNum = v => /^\d+(\.\d+)?$/.test(String(v).trim());
+function measLines(it,bullet='\u2022 '){
+  const m=[]; const f=(v,l)=>{ if(v!=null&&v!=='') m.push(`${bullet}${l}: ${v}${isNum(v)?'"':''}`); };
+  f(it.pit,'Pit to pit'); f(it.length,'Length'); f(it.waist,'Waist'); f(it.inseam,'Inseam'); return m;
+}
+function condSentence(it){
+  const c=condLabel(it.condition);
+  let s = it.condition==='nwt' ? 'New with tags.' : c ? `${c} vintage condition.` : '';
+  if(it.flaws) s += ` Flaws: ${it.flaws.trim().replace(/\.?$/,'.')}`;
+  else if(it.condition && it.condition!=='nwt') s += ' No major flaws noted.';
+  return s.trim();
+}
+function clip(s,max){ if(!max||s.length<=max) return s; return s.slice(0,max-1).trimEnd()+'\u2026'; }
+const tagify = s => '#'+String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+function generate(p,it){
+  const P=PLATFORMS[p], ty=typeLabel(it.type)||'piece', kws=kwList(it), meas=measLines(it);
+  const lead = `${eraWord(it)} ${it.brand?it.brand+' ':''}${ty.toLowerCase()}`;
+  const sizeLine = it.size ? `Size on tag: ${it.size} (vintage sizing runs small \u2014 please go by measurements).` : 'No size tag \u2014 please go by measurements.';
+  const basics = [it.brand&&`Brand: ${it.brand}`, it.era&&it.era!=='Unknown'&&`Era: ${it.era}`, it.color&&`Color: ${it.color}`, it.material&&`Material: ${it.material}`].filter(Boolean);
+  let title, desc;
+  if(p==='poshmark'){
+    title=buildTitle(it,P.titleMax);
+    desc=[`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine,
+      ...(meas.length?['','Measurements (laid flat):',...meas]:[]),
+      '', `Condition: ${condSentence(it)}`, '', 'Bundle & save! Ships fast.', `SKU ${it.sku||''}`].join('\n');
+  } else if(p==='ebay'){
+    title=buildTitle(it,P.titleMax);
+    const spec=[['Brand',it.brand||'Unbranded'],['Type',ty],['Size',it.size||'See measurements'],['Color',it.color],['Material',it.material],
+      ['Decade',it.era&&it.era!=='Unknown'?it.era:''],['Style',kws.join(', ')],
+      ['Condition',it.condition==='nwt'?'New with tags':'Pre-owned \u2014 '+(condLabel(it.condition)||'see description')],
+      ['Pit to pit',it.pit],['Length',it.length],['Waist',it.waist],['Inseam',it.inseam],['SKU',it.sku]].filter(x=>x[1]!=null&&x[1]!=='');
+    desc=[`${lead}${it.color?' in '+it.color.toLowerCase():''}.`, '', condSentence(it), '', sizeLine,
+      ...(meas.length?['','Measurements (taken flat):',...meas]:[]),
+      '', '\u2014 ITEM SPECIFICS \u2014', ...spec.map(([k,v])=>`${k}: ${v}${['Pit to pit','Length','Waist','Inseam'].includes(k)&&isNum(v)?'"':''}`),
+      '', 'Please review all photos \u2014 they are part of the description. Ships within 1 business day.'].join('\n');
+  } else if(p==='depop'){
+    // Depop has no separate title field: the first line of the description acts as the headline.
+    const tags=[...new Set(['vintage', it.era&&it.era!=='Unknown'?it.era:'', it.brand, it.type, ...kws].filter(Boolean).map(tagify).filter(t=>t.length>2))].slice(0,5);
+    title=`${it.era&&it.era!=='Unknown'?it.era+' ':'vintage '}${it.brand?it.brand+' ':''}${it.color?it.color+' ':''}${ty}`.toLowerCase().replace(/\s+/g,' ').trim();
+    desc=[`${title} \u2728`, kws.length?kws.join(' \u00b7 ').toLowerCase():'', '',
+      it.size?`size on tag: ${it.size} \u2014 check measurements`:'no size tag \u2014 check measurements',
+      ...measLines(it,'\u21b3 ').map(s=>s.toLowerCase()), it.material?`\u21b3 ${it.material.toLowerCase()}`:'',
+      '', `condition: ${condSentence(it).toLowerCase()}`, '', 'bundle for a discount \u2022 ships in 1\u20132 days', '', tags.join(' ')].join('\n');
+  } else if(p==='vinted'){
+    title=buildTitle(it,P.titleMax);
+    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
+  } else {
+    title=buildTitle(it,P.titleMax);
+    desc=[`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine, ...measLines(it,'- '),
+      '', `Condition: ${condSentence(it)}`, '', 'Ships fast. Offers welcome!', `SKU ${it.sku||''}`].join('\n');
+  }
+  desc=desc.replace(/\n{3,}/g,'\n\n').trim();
+  return {title, desc:clip(desc,P.descMax)};
+}
+const listingFor = (p,it) => { const g=generate(p,it), c=(it.custom&&it.custom[p])||{}; return {title:c.title??g.title, desc:c.desc??g.desc}; };
+
+/* ===================== value comparison ===================== */
+function feeFor(p,price,c={}){
+  if(!price) return 0;
+  const d=FEE_DEFAULTS[p];
+  if(p==='poshmark' && c.feePct==null && c.feeFixed==null) return price<15 ? 2.95 : price*0.20;
+  const pct=c.feePct!=null?c.feePct:(d.pct||0), fx=c.feeFixed!=null?c.feeFixed:(d.fixed||0);
+  return Math.max(0, price*pct/100 + fx);
+}
+const netAt = (p,price,c) => price ? Math.round((price - feeFor(p,price,c))*100)/100 : null;
+function compAnalysis(it){
+  const comps=it.comps||{}, ask=it.price||null;
+  const rows=PKEYS.map(p=>{
+    const c=comps[p]||{}, med=c.median!=null?c.median:null;
+    return {p,c,netAsk:netAt(p,ask,c),netMed:med!=null?netAt(p,med,c):null};
+  });
+  const withComps=rows.filter(r=>r.netMed!=null);
+  // Best = highest expected net at that platform's median sold price (if any comps), else highest net at asking price.
+  const basis = withComps.length ? 'median' : (ask ? 'ask' : null);
+  let best=null;
+  if(basis==='median') best=withComps.reduce((a,b)=>b.netMed>a.netMed?b:a).p;
+  else if(basis==='ask') best=rows.reduce((a,b)=>b.netAsk>a.netAsk?b:a).p;
+  // Suggested list price = comp-count-weighted average of platform medians, rounded to a whole dollar.
+  let suggested=null, w=0, s=0;
+  withComps.forEach(r=>{ const n=Math.max(1,r.c.count||1); s+=r.c.median*n; w+=n; });
+  if(w) suggested=Math.round(s/w);
+  return {rows,best,basis,suggested};
+}
+function normalizeComps(obj){
+  // Accepts {ebay:{...},...} or {comps:{...}}. Keys: low, median, high, count, feePct, feeFixed.
+  if(obj && obj.comps) obj=obj.comps;
+  if(!obj || typeof obj!=='object' || Array.isArray(obj)) throw new Error('Expected a JSON object');
+  const out={};
+  for(const k of Object.keys(obj)){
+    const p=k.toLowerCase(); if(!PLATFORMS[p]) continue;
+    const v=obj[k]||{}, o={};
+    for(const f of ['low','median','high','count','feePct','feeFixed']){ const n=num(v[f]); if(n!=null) o[f]=n; }
+    out[p]=o;
+  }
+  if(!Object.keys(out).length) throw new Error('No platform keys found (use ebay, poshmark, mercari, depop, vinted)');
+  return out;
+}
+function compQuery(it){ return (it.compQuery && it.compQuery.trim()) || [it.brand, it.era&&it.era!=='Unknown'?(it.era==='Y2K'?'y2k':'vintage '+it.era):'vintage', it.color, it.type==='other'?'':it.type].filter(Boolean).join(' '); }
+
+/* ===================== clipboard / download ===================== */
+async function copyText(text){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } }catch(e){ /* fall back below */ }
+  const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';
+  document.body.appendChild(ta); ta.focus(); ta.select(); try{ ta.setSelectionRange(0,text.length); }catch(e){}
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+  ta.remove(); return ok;
+}
+function downloadBlob(blob,name){
+  const u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=name; a.rel='noopener';
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },8000);
+}
+
+/* ===================== app state & routing ===================== */
+let ITEMS=[];
+const UI = { q:'', filter:'all', sort:'new', view:'grid' };
+let objectURLs=[]; const revokeAll=()=>{ objectURLs.forEach(u=>URL.revokeObjectURL(u)); objectURLs=[]; };
+let EDIT=null, DETAIL=null;
+async function refresh(){ ITEMS=await getAllItems(); }
+
+function route(){
+  revokeAll();
+  const h=location.hash.replace(/^#\/?/,''), [v,id]=h.split('/');
+  $$('#nav a').forEach(a=>a.classList.toggle('on', (a.dataset.nav==='inv'&&(!v||v==='item')) || a.dataset.nav===v || (a.dataset.nav==='add'&&v==='edit')));
+  window.scrollTo(0,0);
+  if(v==='add') return renderForm(null);
+  if(v==='edit') return renderForm(id);
+  if(v==='item') return renderDetail(id);
+  if(v==='backup') return renderBackup();
+  return renderInventory();
+}
+
+/* ---------- Inventory ---------- */
+function renderInventory(){
+  $('#app').innerHTML=`
+  <header class="top"><h1>${esc(APP_NAME)}</h1><p class="tag">${esc(APP_TAGLINE)}</p>
+    <svg class="ornament" viewBox="0 0 120 8" aria-hidden="true"><path d="M0 4h48M72 4h48" stroke="currentColor"/><circle cx="60" cy="4" r="3" fill="currentColor"/><circle cx="52" cy="4" r="1.5" fill="currentColor"/><circle cx="68" cy="4" r="1.5" fill="currentColor"/></svg></header>
+  <section class="stats" id="stats"></section>
+  <div id="globalAlert"></div>
+  <input class="search" id="q" type="search" placeholder="Search brand, SKU, keyword\u2026" value="${esc(UI.q)}" autocomplete="off">
+  <div class="chips" id="filters">
+    ${[['all','All'],['unlisted','Unlisted'],['listed','Listed'],['sold','Sold'],['delist','\u26a0 Needs delisting']].map(([k,l])=>`<button class="chip ${k==='delist'?'warn':''} ${UI.filter===k?'on':''}" data-f="${k}">${l}</button>`).join('')}
+  </div>
+  <div class="row between">
+    <select class="sel" id="sort" aria-label="Sort">
+      ${[['new','Newest first'],['old','Oldest first'],['phigh','Price: high \u2192 low'],['plow','Price: low \u2192 high']].map(([k,l])=>`<option value="${k}" ${UI.sort===k?'selected':''}>${l}</option>`).join('')}
+    </select>
+    <button class="btn sm ghost" id="viewT">${UI.view==='grid'?'\u2630 List':'\u25a6 Grid'}</button>
+  </div>
+  <div class="items ${UI.view}" id="list"></div>`;
+  $('#q').addEventListener('input',e=>{ UI.q=e.target.value; renderList(); });
+  $('#filters').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(!b) return; UI.filter=b.dataset.f; $$('#filters .chip').forEach(c=>c.classList.toggle('on',c===b)); renderList(); });
+  $('#sort').addEventListener('change',e=>{ UI.sort=e.target.value; renderList(); });
+  $('#viewT').addEventListener('click',()=>{ UI.view=UI.view==='grid'?'list':'grid'; renderInventory(); });
+  renderList();
+}
+function renderList(){
+  const s={total:ITEMS.length,listed:0,sold:0,rev:0,cost:0};
+  ITEMS.forEach(it=>{ const x=st(it); if(x.sold){ s.sold++; s.rev+=soldPrice(it); s.cost+=(it.cost||0);} else if(x.listed) s.listed++; });
+  // Profit = revenue of sold items minus what you paid for those sold items.
+  $('#stats').innerHTML=`
+    <div class="stat"><b>${s.total}</b><span>Items</span></div>
+    <div class="stat"><b>${s.listed}</b><span>Listed</span></div>
+    <div class="stat"><b>${s.sold}</b><span>Sold</span></div>
+    <div class="stat"><b>${money(s.rev)}</b><span>Revenue</span></div>
+    <div class="stat"><b style="color:${s.rev-s.cost<0?'var(--red)':'var(--sage)'}">${money(s.rev-s.cost)}</b><span>Profit</span></div>
+    <div class="stat"><b>${ITEMS.length-s.sold}</b><span>In stock</span></div>`;
+  const nd=ITEMS.filter(it=>st(it).needsDelist);
+  $('#globalAlert').innerHTML = nd.length ? `<button class="alert" id="ndBtn"><span class="x">\u26a0</span><span>${nd.length} sold item${nd.length>1?'s are':' is'} still listed elsewhere<small>Tap to see what to remove</small></span></button>` : '';
+  if(nd.length) $('#ndBtn').onclick=()=>{ UI.filter='delist'; renderInventory(); };
+  const q=UI.q.trim().toLowerCase();
+  const list=ITEMS.filter(it=>{
+    const x=st(it);
+    if(UI.filter==='unlisted'&&!x.unlisted) return false;
+    if(UI.filter==='listed'&&!(x.listed&&!x.sold)) return false;
+    if(UI.filter==='sold'&&!x.sold) return false;
+    if(UI.filter==='delist'&&!x.needsDelist) return false;
+    if(q){ const hay=[it.sku,it.brand,it.type,it.era,it.color,it.material,it.keywords,it.size,buildTitle(it)].join(' ').toLowerCase(); if(!q.split(/\s+/).every(w=>hay.includes(w))) return false; }
+    return true;
+  });
+  const by={new:(a,b)=>b.createdAt-a.createdAt, old:(a,b)=>a.createdAt-b.createdAt, phigh:(a,b)=>(b.price||0)-(a.price||0), plow:(a,b)=>(a.price||0)-(b.price||0)};
+  list.sort(by[UI.sort]);
+  const el=$('#list');
+  if(!ITEMS.length){ el.className='items'; el.innerHTML=`<div class="empty"><h2>Your rack is empty</h2><p>Tap the <b>+</b> button to photograph your first piece.</p><a class="btn primary" href="#/add">+ Add first item</a></div>`; return; }
+  el.className='items '+UI.view;
+  if(!list.length){ el.innerHTML=`<div class="empty" style="grid-column:1/-1">No items match.</div>`; return; }
+  el.innerHTML=list.map(it=>{
+    const x=st(it), dl=delistTargets(it);
+    return `<a class="card" href="#/item/${it.id}">
+      ${x.needsDelist?`<span class="ribbon">DELIST \u00d7${dl.length}</span>`:x.sold?`<span class="ribbon sold">SOLD</span>`:''}
+      <div class="thumb">${it.thumb?`<img src="${it.thumb}" alt="" loading="lazy">`:'<span>no photo</span>'}</div>
+      <div class="ci"><div class="sku">${esc(it.sku)}</div><div class="t">${esc(buildTitle(it,80)||'Untitled')}</div>
+      <div class="price">${money(x.sold?soldPrice(it):it.price)}</div>
+      <div class="pchips">${PKEYS.map(k=>{ const s=it.status?.[k]?.state||'none'; const cls= s==='listed'&&x.sold?'delist':s; return `<span class="pc ${cls}" title="${PLATFORMS[k].name}: ${s}">${PLATFORMS[k].short}${s==='sold'?' \u2713':''}</span>`; }).join('')}</div></div></a>`;
+  }).join('');
+}
+
+/* ---------- Add / Edit form ---------- */
+async function renderForm(id){
+  const it = id ? ITEMS.find(x=>x.id===id) : null;
+  if(id && !it){ location.hash='#/'; return; }
+  const v = it || {type:'dress',era:'70s',condition:'excellent'};
+  EDIT={item:it, photos:[], removed:[]};
+  if(it){ for(const p of await getPhotos(it.id)){ const b=photoBlob(p), u=URL.createObjectURL(b); objectURLs.push(u); EDIT.photos.push({id:p.id,blob:b,url:u,isNew:false}); } }
+  const brands=[...new Set(ITEMS.map(i=>i.brand).filter(Boolean))].sort();
+  const opt=(arr,sel)=>arr.map(a=>{ const [k,l]=Array.isArray(a)?a:[a,a==='t-shirt'?'T-shirt':cap(a)]; return `<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(l)}</option>`; }).join('');
+  const inp=(n,l,extra='')=>`<label class="f"><span>${l}</span><input name="${n}" value="${esc(v[n]??'')}" ${extra}></label>`;
+  $('#app').innerHTML=`
+  <div class="bar"><a class="btn sm ghost" href="${it?'#/item/'+it.id:'#/'}">\u2039 Back</a><span class="ttl">${it?'Edit '+esc(it.sku):'New item'}</span><span style="width:70px"></span></div>
+  <form id="form" autocomplete="off">
+    <fieldset><legend>Photos</legend>
+      <div class="pickers">
+        <label class="btn primary pick">\ud83d\udcf7 Take photo<input type="file" accept="image/*" capture="environment" id="camIn"></label>
+        <label class="btn pick">\ud83d\uddbc From gallery<input type="file" accept="image/*" multiple id="galIn"></label>
+      </div>
+      <div class="photos" id="photos"></div>
+      <p class="note" id="photoNote">Photos are resized to ${IMG_MAX_PX}px JPEG to save space. \u2605 sets the cover photo.</p>
+    </fieldset>
+    <fieldset><legend>The piece</legend>
+      ${inp('brand','Brand','list="brands" placeholder="e.g. Gunne Sax, Levi\'s, unbranded" autocapitalize="words"')}
+      <datalist id="brands">${brands.map(b=>`<option value="${esc(b)}">`).join('')}</datalist>
+      <div class="g2">
+        <label class="f"><span>Item type</span><select name="type">${opt(TYPES,v.type)}</select></label>
+        <label class="f"><span>Era / decade</span><select name="era">${opt(ERAS,v.era)}</select></label>
+      </div>
+      <div class="g2">${inp('size','Size on tag','placeholder="e.g. 8, M"')}${inp('color','Color','placeholder="e.g. rust"')}</div>
+      ${inp('material','Material','placeholder="e.g. cotton, wool blend"')}
+      ${inp('keywords','Style keywords','placeholder="boho, prairie, cottagecore"')}
+    </fieldset>
+    <fieldset><legend>Measurements (inches, laid flat)</legend>
+      <div class="g2">${inp('pit','Pit to pit','inputmode="decimal" placeholder="optional"')}${inp('length','Length','inputmode="decimal" placeholder="optional"')}
+      ${inp('waist','Waist','inputmode="decimal" placeholder="optional"')}${inp('inseam','Inseam','inputmode="decimal" placeholder="optional"')}</div>
+    </fieldset>
+    <fieldset><legend>Condition</legend>
+      <label class="f"><span>Condition</span><select name="condition">${opt(CONDITIONS,v.condition)}</select></label>
+      <label class="f"><span>Flaws / notes</span><textarea name="flaws" placeholder="e.g. tiny pinhole near hem, faint mark on cuff">${esc(v.flaws||'')}</textarea></label>
+    </fieldset>
+    <fieldset><legend>Money</legend>
+      <div class="g2">${inp('cost','Cost paid ($)','inputmode="decimal" placeholder="0"')}${inp('price','Asking price ($)','inputmode="decimal" placeholder="0"')}</div>
+      <p class="note">SKU: <b>${it?esc(it.sku):'assigned automatically on save'}</b></p>
+    </fieldset>
+    <div class="sticky-save"><button class="btn primary block" type="submit" id="saveBtn">${it?'Save changes':'Save item'}</button></div>
+  </form>`;
+  const drawPhotos=()=>{ $('#photos').innerHTML=EDIT.photos.map((p,i)=>`<div class="ph"><img src="${p.url}" alt="">
+    <button type="button" class="rm" data-rm="${i}" aria-label="Remove photo">\u2715</button>${i?`<button type="button" class="cv" data-cv="${i}" aria-label="Make cover">\u2605</button>`:'<span class="badge">COVER</span>'}</div>`).join(''); };
+  drawPhotos();
+  $('#photos').addEventListener('click',e=>{
+    const rm=e.target.closest('[data-rm]'), cv=e.target.closest('[data-cv]');
+    if(rm){ const [p]=EDIT.photos.splice(+rm.dataset.rm,1); if(!p.isNew) EDIT.removed.push(p.id); drawPhotos(); }
+    if(cv){ const [p]=EDIT.photos.splice(+cv.dataset.cv,1); EDIT.photos.unshift(p); drawPhotos(); }
+  });
+  const onFiles=async e=>{
+    const files=Array.from(e.target.files||[]); e.target.value='';
+    if(!files.length) return;
+    $('#photoNote').textContent=`Processing ${files.length} photo${files.length>1?'s':''}\u2026`;
+    for(const f of files){
+      try{ const b=await resizeImage(f,IMG_MAX_PX,IMG_QUALITY), u=URL.createObjectURL(b); objectURLs.push(u); EDIT.photos.push({id:uid(),blob:b,url:u,isNew:true}); drawPhotos(); }
+      catch(err){ toast(err.message); }
+    }
+    $('#photoNote').textContent=`${EDIT.photos.length} photo${EDIT.photos.length===1?'':'s'} \u00b7 \u2605 sets the cover photo.`;
+  };
+  $('#camIn').addEventListener('change',onFiles); $('#galIn').addEventListener('change',onFiles);
+  $('#form').addEventListener('submit',saveForm);
+}
+async function saveForm(e){
+  e.preventDefault();
+  const btn=$('#saveBtn'); btn.disabled=true; btn.textContent='Saving\u2026';
+  try{
+    const fd=new FormData(e.target), g=k=>(fd.get(k)||'').toString().trim();
+    const it=EDIT.item ? {...EDIT.item} : {id:uid(), createdAt:Date.now(), status:defaultStatus(), custom:{}, comps:{}};
+    Object.assign(it,{brand:g('brand'),type:g('type'),era:g('era'),size:g('size'),color:g('color'),material:g('material'),keywords:g('keywords'),
+      pit:g('pit'),length:g('length'),waist:g('waist'),inseam:g('inseam'),condition:g('condition'),flaws:g('flaws'),
+      cost:num(g('cost')),price:num(g('price')),updatedAt:Date.now()});
+    if(!it.sku) it.sku=await nextSku();
+    for(const [i,p] of EDIT.photos.entries()){ const buf=await blobToBuf(p.blob); await putPhoto({id:p.id,itemId:it.id,idx:i,type:p.blob.type||'image/jpeg',buf}); }
+    for(const id of EDIT.removed) await delPhoto(id);
+    it.photoCount=EDIT.photos.length;
+    it.thumb=EDIT.photos[0]?await makeThumb(EDIT.photos[0].blob):'';
+    await putItem(it); await refresh();
+    if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+    toast(EDIT.item?'Saved':'Item added \u00b7 '+it.sku);
+    location.hash='#/item/'+it.id;
+  }catch(err){ console.error(err); toast('Save failed: '+err.message); btn.disabled=false; btn.textContent='Save item'; }
+}
+
+/* ---------- Item detail: listings, status, comps ---------- */
+async function renderDetail(id){
+  const it=ITEMS.find(x=>x.id===id);
+  if(!it){ location.hash='#/'; return; }
+  it.status={...defaultStatus(),...(it.status||{})}; it.custom=it.custom||{}; it.comps=it.comps||{};
+  const photos=await getPhotos(it.id);
+  // Pre-build File objects so navigator.share() runs directly inside the tap (Safari requires a fresh user gesture).
+  DETAIL={item:it, files:photos.map((p,i)=>new File([photoBlob(p)],`${it.sku}-${i+1}.jpg`,{type:p.type||'image/jpeg'}))};
+  const urls=DETAIL.files.map(f=>{ const u=URL.createObjectURL(f); objectURLs.push(u); return u; });
+  const kv=[['Brand',it.brand],['Type',typeLabel(it.type)],['Era',it.era],['Size',it.size],['Color',it.color],['Material',it.material],['Condition',condLabel(it.condition)],['Flaws',it.flaws],
+    ['Measurements',measLines(it,'').join(' \u00b7 ')],['Keywords',it.keywords],['Cost',money(it.cost)],['Asking',money(it.price)]].filter(x=>x[1]&&x[1]!=='\u2014');
+  $('#app').innerHTML=`
+  <div class="bar"><a class="btn sm ghost" href="#/">\u2039 Inventory</a><span class="ttl">${esc(it.sku)}</span><a class="btn sm" href="#/edit/${it.id}">Edit</a></div>
+  <div id="delist"></div>
+  ${urls.length?`<div class="gallery">${urls.map(u=>`<img src="${u}" alt="">`).join('')}</div>`:`<a class="nophoto" href="#/edit/${it.id}">+ Add photos</a>`}
+  ${urls.length?`<div class="pbtns"><button class="btn primary" id="shareBtn">\u2934 Share photos</button><button class="btn" id="dlBtn">\u2b07 Download photos</button></div>
+  <p class="note">On a phone, Share sends the photos straight to the Poshmark / Depop / Mercari app or saves them to your camera roll.</p>`:''}
+  <div class="summary"><div class="sku">${esc(it.sku)}</div><h2>${esc(buildTitle(it,80))}</h2>
+    <div class="row between" style="margin-top:6px"><span class="price" style="font-size:22px">${money(it.price)}</span><span id="soldBox"></span></div>
+    <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
+
+  <h2 class="sec">Listings</h2>
+  <p class="sub">Copy \u2192 paste into the site/app \u2192 mark <b>Listed</b>. This app can't post for you (no public listing APIs); it just makes posting fast.</p>
+  <div id="pcards">${PKEYS.map(p=>pcardHTML(p,it)).join('')}</div>
+
+  <h2 class="sec">Value comparison</h2>
+  <p class="sub">Your sold comps per site + estimated payout after seller fees.</p>
+  <div class="comps" id="comps"></div>
+  <button class="btn danger block" id="delBtn" style="margin:10px 0 20px">Delete item</button>`;
+  PKEYS.forEach(p=>bindPcard(p));
+  updateStatusUI();
+  renderComps();
+  if(urls.length){ $('#shareBtn').onclick=sharePhotos; $('#dlBtn').onclick=downloadPhotos; }
+  $('#delBtn').onclick=async()=>{ if(!confirm(`Delete ${it.sku} and its photos? This cannot be undone.`)) return; await deleteItem(it.id); await refresh(); toast('Deleted'); location.hash='#/'; };
+}
+function pcardHTML(p,it){
+  const P=PLATFORMS[p], L=listingFor(p,it), s=it.status[p]||{state:'none',url:''};
+  return `<section class="pcard" data-p="${p}" style="--pc:${P.color}">
+    <div class="hd"><h3>${P.name}</h3>
+      <div class="seg" role="group" aria-label="${P.name} status">${[['none','Not listed'],['listed','Listed'],['sold','Sold']].map(([k,l])=>`<button type="button" data-s="${k}">${l}</button>`).join('')}</div></div>
+    <div class="lbl"><span>${p==='depop'?'Headline (Depop has no title field)':'Title'}</span><span class="cnt" data-c="t"></span></div>
+    <textarea class="inp ti" rows="2">${esc(L.title)}</textarea>
+    <div class="lbl"><span>Description</span><span class="cnt" data-c="d"></span></div>
+    <textarea class="inp de" rows="9">${esc(L.desc)}</textarea>
+    <div class="pbtns">
+      <button class="btn sm" data-copy="t">Copy title</button><button class="btn sm" data-copy="d">Copy description</button>
+      <button class="btn sm rust" data-copy="a">Copy all</button><a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site \u2197</a>
+    </div>
+    <div class="lbl"><span>Listing URL (optional)</span><a class="lnk" target="_blank" rel="noopener" style="display:none">open listing \u2197</a></div>
+    <input class="inp url" type="url" inputmode="url" placeholder="Paste the live listing link" value="${esc(s.url||'')}">
+    <button type="button" class="btn sm ghost regen" style="margin-top:8px">\u21ba Regenerate text from details</button>
+  </section>`;
+}
+function bindPcard(p){
+  const it=DETAIL.item, el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p], ti=$('.ti',el), de=$('.de',el);
+  const counts=()=>{
+    const ct=$('[data-c=t]',el), cd=$('[data-c=d]',el), tags=(de.value.match(/#[\w]+/g)||[]).length;
+    ct.textContent=ti.value.length+(P.titleMax?` / ${P.titleMax}`:' chars'); ct.classList.toggle('over',!!P.titleMax&&ti.value.length>P.titleMax);
+    cd.textContent=de.value.length+(P.descMax?` / ${P.descMax}`:' chars')+(p==='depop'?` \u00b7 ${tags}/5 #`:'');
+    cd.classList.toggle('over',(!!P.descMax&&de.value.length>P.descMax)||(p==='depop'&&tags>5));
+  };
+  counts();
+  let t; const saveCustom=()=>{ clearTimeout(t); t=setTimeout(async()=>{ const g=generate(p,it), c={}; if(ti.value!==g.title) c.title=ti.value; if(de.value!==g.desc) c.desc=de.value; it.custom[p]=c; await putItem(it); },400); };
+  ti.addEventListener('input',()=>{counts();saveCustom();}); de.addEventListener('input',()=>{counts();saveCustom();});
+  $('.regen',el).onclick=async()=>{ delete it.custom[p]; const g=generate(p,it); ti.value=g.title; de.value=g.desc; counts(); await putItem(it); toast('Regenerated'); };
+  el.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.copy, txt=k==='t'?ti.value:k==='d'?de.value:`${ti.value}\n\n${de.value}`;
+    const ok=await copyText(txt); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'title + description'} for ${P.name}`:'Copy blocked \u2014 long-press the text to copy');
+  });
+  el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setStatus(p,b.dataset.s));
+  const url=$('.url',el), lnk=$('.lnk',el);
+  const showLnk=()=>{ const v=url.value.trim(); lnk.style.display=/^https?:\/\//.test(v)?'':'none'; lnk.href=v; };
+  showLnk();
+  url.addEventListener('input',()=>{ it.status[p].url=url.value.trim(); showLnk(); clearTimeout(url._t); url._t=setTimeout(()=>putItem(it),400); });
+}
+async function setStatus(p,s){
+  const it=DETAIL.item; it.status[p]={...(it.status[p]||{}),state:s};
+  if(s==='sold'){ if(it.soldPrice==null) it.soldPrice=it.price||0; it.soldAt=it.soldAt||Date.now(); }
+  if(!st(it).sold){ delete it.soldPrice; delete it.soldAt; }
+  it.updatedAt=Date.now(); await putItem(it); await refresh();
+  updateStatusUI();
+  toast(`${PLATFORMS[p].name}: ${s==='none'?'not listed':s}`);
+}
+function updateStatusUI(){
+  const it=DETAIL.item, x=st(it), dl=delistTargets(it), so=soldOn(it);
+  PKEYS.forEach(p=>{ const el=$(`.pcard[data-p="${p}"]`), s=it.status[p]?.state||'none';
+    el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+    el.classList.toggle('is-delist',x.sold&&s==='listed'); });
+  $('#delist').innerHTML = dl.length ? `<div class="alert" role="alert" id="delistBanner"><span class="x">\u26a0</span><span>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
+    <small>Delist now so it can't sell twice, then tap \u201cRemoved\u201d for each:</small>
+    <span class="sbtns">${dl.map(k=>`<button class="btn sm" data-rmv="${k}">\u2713 Removed from ${PLATFORMS[k].name}</button>`).join('')}</span></span></div>` : '';
+  $$('#delist [data-rmv]').forEach(b=>b.onclick=()=>setStatus(b.dataset.rmv,'none'));
+  $('#soldBox').innerHTML = x.sold ? `<label class="row" style="font-size:13px;color:var(--muted);font-weight:600">Sold for $<input id="soldP" class="sel" inputmode="decimal" style="width:90px" value="${esc(it.soldPrice??'')}"></label>` : '';
+  if(x.sold) $('#soldP').addEventListener('input',e=>{ it.soldPrice=num(e.target.value)??0; clearTimeout(e.target._t); e.target._t=setTimeout(async()=>{ await putItem(it); await refresh(); },400); });
+}
+function renderComps(){
+  const it=DETAIL.item, A=compAnalysis(it), q=compQuery(it);
+  const feeTxt=(p,c)=>{ if(p==='poshmark'&&c.feePct==null&&c.feeFixed==null) return it.price!=null&&it.price<15?'$2.95':'20%'; const d=FEE_DEFAULTS[p]; const pct=c.feePct??d.pct??0, fx=c.feeFixed??d.fixed??0; return `${pct}%${fx?' + $'+Number(fx).toFixed(2):''}`; };
+  const bestRow=A.rows.find(r=>r.p===A.best);
+  $('#comps').innerHTML=`
+    ${A.best?`<div class="suggest" id="suggestBox"><span style="font-size:26px">\ud83d\udca1</span><div>
+      ${A.suggested!=null?`<div>Suggested price <b id="suggested">${money(A.suggested)}</b> <span class="hint">(comp-weighted median)</span></div>`:''}
+      <div style="font-size:14px">Best net: <strong id="bestNet">${PLATFORMS[A.best].name}</strong> \u00b7 ${money(A.basis==='median'?bestRow.netMed:bestRow.netAsk)} ${A.basis==='median'?'at its median sold price':'at your asking price'}</div>
+    </div></div>`:`<p class="hint">Add an asking price or comps to see estimated payouts.</p>`}
+    <div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Site / fee</th><th>Range</th><th>Med</th><th>#</th><th>Net@ask</th><th>Net@med</th></tr></thead><tbody>
+    ${A.rows.map(r=>`<tr class="${r.p===A.best?'best':''}" data-row="${r.p}"><td>${PLATFORMS[r.p].name}<div class="hint" style="font-weight:500">${feeTxt(r.p,r.c)}</div></td><td>${r.c.low!=null||r.c.high!=null?money(r.c.low)+'\u2013'+(r.c.high!=null?String(Math.round(r.c.high)):'?'):'\u2014'}</td><td>${money(r.c.median)}</td><td>${r.c.count??'\u2014'}</td><td>${money(r.netAsk)}</td><td>${money(r.netMed)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">Net@ask = ${money(it.price)} asking minus fees. \u2605 best = highest net at that site's median sold price (or at asking if no comps). Fees are estimates; shipping not included.</p>
+    <div class="lbl"><span>Search sold comps for</span></div>
+    <input class="inp" id="compQ" value="${esc(q)}">
+    <div class="sbtns" id="compLinks">${PKEYS.map(p=>`<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${COMP_SEARCH[p].replace('{q}',encodeURIComponent(q))}">${PLATFORMS[p].name} sold \u2197</a>`).join('')}</div>
+    <p class="hint">Depop & Vinted links open a regular search (no sold-only URL filter) \u2014 use the site's \u201cSold\u201d toggle.</p>
+    <details class="ce"><summary>\u270e Enter comps by site</summary><div class="in">
+      ${PKEYS.map(p=>{ const c=it.comps[p]||{}; const f=(k,l,ph='')=>`<label>${l}<input data-cp="${p}" data-ck="${k}" inputmode="decimal" value="${esc(c[k]??'')}" placeholder="${ph}"></label>`;
+        return `<div style="margin-top:10px"><b style="font-size:14px">${PLATFORMS[p].name}</b> <span class="hint">${esc(FEE_DEFAULTS[p].note)}</span>
+        <div class="g6">${f('low','Low $')}${f('median','Median $')}${f('high','High $')}${f('count','# comps')}${f('feePct','Fee %',FEE_DEFAULTS[p].pct??'auto')}${f('feeFixed','Fee $',FEE_DEFAULTS[p].fixed??'auto')}</div></div>`; }).join('')}
+      <button class="btn sm primary" id="saveComps" style="margin-top:10px">Save comps</button>
+    </div></details>
+    <details class="ce"><summary>\u2398 Paste comps JSON</summary><div class="in">
+      <textarea class="inp" id="compJson" rows="6" placeholder='{"ebay":{"low":22,"median":38,"high":65,"count":14}}'></textarea>
+      <div class="sbtns"><button class="btn sm primary" id="applyJson">Apply JSON</button><button class="btn sm" id="copyJson">Copy current as JSON</button></div>
+      <p class="hint">Per site: <code>low</code> <code>median</code> <code>high</code> <code>count</code>, optional <code>feePct</code> <code>feeFixed</code>. Sites not in the JSON keep their values.</p>
+    </div></details>`;
+  $('#compQ').addEventListener('input',e=>{ const v=e.target.value; $$('#compLinks [data-sp]').forEach(a=>a.href=COMP_SEARCH[a.dataset.sp].replace('{q}',encodeURIComponent(v))); clearTimeout(e.target._t); e.target._t=setTimeout(()=>{ it.compQuery=v; putItem(it); },500); });
+  $('#saveComps').onclick=async()=>{ const c={}; $$('[data-cp]').forEach(i=>{ const n=num(i.value); if(n==null) return; (c[i.dataset.cp]=c[i.dataset.cp]||{})[i.dataset.ck]=n; }); it.comps=c; it.compsUpdatedAt=Date.now(); await putItem(it); renderComps(); toast('Comps saved'); };
+  $('#applyJson').onclick=async()=>{ try{ const c=normalizeComps(JSON.parse($('#compJson').value)); it.comps={...it.comps,...c}; it.compsUpdatedAt=Date.now(); await putItem(it); renderComps(); toast(`Comps applied for ${Object.keys(c).length} site(s)`); }catch(err){ toast('Invalid JSON: '+err.message); } };
+  $('#copyJson').onclick=async()=>{ const ok=await copyText(JSON.stringify(it.comps,null,2)); toast(ok?'Comps JSON copied':'Copy blocked'); };
+}
+async function sharePhotos(){
+  const files=DETAIL.files;
+  if(navigator.canShare && navigator.share && navigator.canShare({files})){
+    try{ await navigator.share({files}); }catch(e){ if(e.name!=='AbortError'){ toast('Share failed \u2014 downloading instead'); downloadPhotos(); } }
+  } else { toast('Photo sharing not supported here \u2014 downloading instead'); downloadPhotos(); }
+}
+function downloadPhotos(){ DETAIL.files.forEach((f,i)=>setTimeout(()=>downloadBlob(f,f.name),i*400)); }
+
+/* ---------- Backup / export / import ---------- */
+function renderBackup(){
+  $('#app').innerHTML=`
+  <header class="top"><h1>Backup</h1><p class="tag">your data lives only on this device</p></header>
+  <fieldset><legend>Export</legend>
+    <button class="btn primary block" id="expJson">\u2b07 Full backup (JSON, with photos)</button>
+    <p class="note">Restores everything later or on a new phone. Save it to Files / iCloud / Google Drive.</p>
+    <button class="btn block" id="expCsv" style="margin-top:12px">\u2b07 Inventory spreadsheet (CSV, no photos)</button>
+  </fieldset>
+  <fieldset><legend>Import</legend>
+    <label class="btn block pick">\u2b06 Restore from JSON backup<input type="file" accept="application/json,.json" id="impJson"></label>
+    <p class="note">Merges into current inventory; items with the same ID are replaced.</p>
+    <label class="btn block pick" style="margin-top:12px">\u2b06 Import comps by SKU (JSON)<input type="file" accept="application/json,.json" id="impComps"></label>
+    <p class="note">Format: <code>{"V-0001": {"ebay": {"low":20,"median":35,"high":60,"count":12}}}</code></p>
+  </fieldset>
+  <fieldset><legend>Storage</legend><p class="note" id="storeInfo">Checking\u2026</p>
+    <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>`;
+  $('#expJson').onclick=exportJSON; $('#expCsv').onclick=exportCSV;
+  $('#impJson').onchange=importJSON; $('#impComps').onchange=importComps;
+  (async()=>{ let s=`${ITEMS.length} items.`; try{ if(navigator.storage?.estimate){ const e=await navigator.storage.estimate(); s+=` Using ~${(e.usage/1048576).toFixed(1)} MB.`; } if(navigator.storage?.persisted) s+=(await navigator.storage.persisted())?' Storage is persistent \u2713':' Storage not marked persistent (browser may clear it if space runs low).'; }catch(e){} $('#storeInfo').textContent=s; })();
+}
+const stamp=()=>new Date().toISOString().slice(0,10);
+const slug=APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+async function buildBackupBlob(){
+  const photos=await getAllPhotos(), parts=[];
+  const head=JSON.stringify({app:APP_NAME,format:'closet-to-cash-backup',version:1,exportedAt:new Date().toISOString(),skuCounter:(await getMeta('sku'))||0,items:ITEMS});
+  parts.push(head.slice(0,-1)+',"photos":[');
+  for(let i=0;i<photos.length;i++){ const p=photos[i]; parts.push((i?',':'')+JSON.stringify({id:p.id,itemId:p.itemId,idx:p.idx,data:await blobToDataURL(photoBlob(p))})); }
+  parts.push(']}');
+  return {blob:new Blob(parts,{type:'application/json'}),photoCount:photos.length};
+}
+async function exportJSON(){
+  toast('Preparing backup\u2026');
+  const {blob,photoCount}=await buildBackupBlob();
+  downloadBlob(blob,`${slug}-backup-${stamp()}.json`);
+  toast(`Backup saved: ${ITEMS.length} items, ${photoCount} photos`);
+}
+function buildCSV(){
+  const cols=['sku','brand','type','era','size','color','material','keywords','pit','length','waist','inseam','condition','flaws','cost','price','soldPrice'];
+  const head=[...cols,...PKEYS.flatMap(p=>[p+'_status',p+'_url']),'created'];
+  const cell=v=>{ v=v==null?'':String(v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const rows=ITEMS.slice().sort((a,b)=>a.createdAt-b.createdAt).map(it=>[...cols.map(c=>c==='condition'?condLabel(it.condition):c==='soldPrice'?(st(it).sold?soldPrice(it):''):it[c]),
+    ...PKEYS.flatMap(p=>[it.status?.[p]?.state||'none',it.status?.[p]?.url||'']), new Date(it.createdAt).toISOString()].map(cell).join(','));
+  return '\ufeff'+[head.join(','),...rows].join('\r\n');
+}
+function exportCSV(){ downloadBlob(new Blob([buildCSV()],{type:'text/csv'}),`${slug}-inventory-${stamp()}.csv`); toast('CSV exported'); }
+async function importJSON(e){
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!d||!Array.isArray(d.items)) throw new Error('Not a backup file');
+    if(!confirm(`Import ${d.items.length} items and ${(d.photos||[]).length} photos into this device?`)) return;
+    for(const it of d.items){ if(!it.id) continue; it.status={...defaultStatus(),...(it.status||{})}; if(it.comps) try{ it.comps=normalizeComps(it.comps); }catch(_){ it.comps={}; } await putItem(it); }
+    for(const p of (d.photos||[])){ if(!p.id||!p.data) continue; const {buf,type}=dataURLToBuf(p.data); await putPhoto({id:p.id,itemId:p.itemId,idx:p.idx||0,type,buf}); }
+    let maxN=d.skuCounter||0; d.items.forEach(it=>{ const m=String(it.sku||'').match(/(\d+)$/); if(m) maxN=Math.max(maxN,+m[1]); });
+    if(maxN>((await getMeta('sku'))||0)) await setMeta('sku',maxN);
+    await refresh(); toast(`Imported ${d.items.length} items`); location.hash='#/'; route();
+  }catch(err){ toast('Import failed: '+err.message); }
+}
+async function importComps(e){
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const d=JSON.parse(await f.text()); let n=0; const miss=[];
+    for(const sku of Object.keys(d)){ const it=ITEMS.find(i=>i.sku===sku); if(!it){ miss.push(sku); continue; } it.comps={...(it.comps||{}),...normalizeComps(d[sku])}; it.compsUpdatedAt=Date.now(); await putItem(it); n++; }
+    await refresh(); toast(`Comps updated for ${n} item(s)${miss.length?` \u00b7 not found: ${miss.slice(0,3).join(', ')}`:''}`);
+  }catch(err){ toast('Import failed: '+err.message); }
+}
+
+/* ---------- home-screen icon (PNG generated at runtime; iOS ignores SVG touch icons) ---------- */
+function addTouchIcon(){
+  try{
+    const c=document.createElement('canvas'); c.width=c.height=180; const x=c.getContext('2d');
+    x.fillStyle='#7a3a26'; x.fillRect(0,0,180,180);
+    x.strokeStyle='#f6efe3'; x.lineWidth=9; x.lineCap='round'; x.lineJoin='round';
+    x.beginPath(); x.arc(90,52,16,Math.PI*0.95,Math.PI*0.5,false); x.lineTo(90,82); x.lineTo(148,124); x.lineTo(32,124); x.closePath(); x.stroke();
+    x.fillStyle='#c48f2c'; x.font='bold 34px Georgia,serif'; x.textAlign='center'; x.fillText('$',90,164);
+    const l=document.createElement('link'); l.rel='apple-touch-icon'; l.href=c.toDataURL('image/png'); document.head.appendChild(l);
+  }catch(e){}
+}
+
+/* ---------- boot ---------- */
+(async function init(){
+  document.title=APP_NAME;
+  const m=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(m) m.content=APP_NAME;
+  if(location.protocol==='file:') addTouchIcon();   // hosted copy uses icon-180.png instead
+  else {
+    // Web app manifest + service worker only work over http(s) (e.g. GitHub Pages), not file://
+    const l=document.createElement('link'); l.rel='manifest'; l.href='manifest.webmanifest'; document.head.appendChild(l);
+    if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(e=>console.warn('SW registration failed',e)));
+  }
+  try{ db=await openDB(); await refresh(); }
+  catch(err){ $('#app').innerHTML=`<div class="empty"><h2>Storage unavailable</h2><p>${esc(err.message)}. Private browsing or some file previewers block storage \u2014 open this page in Safari/Chrome normally.</p></div>`; return; }
+  window.addEventListener('hashchange',route);
+  route();
+})();
+</script>
+</body>
+</html>
