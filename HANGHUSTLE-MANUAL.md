@@ -1,3 +1,5 @@
+> **Public copy, private details redacted.** Family emails and usernames are removed here. The full manual is on the box at /workspace/shared-library/manuals/HangHustle-Manual.md.
+
 # HangHustle Manual
 
 The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:50 PM CT**.
@@ -50,7 +52,7 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | 6:00 PM | **Final name: "Hanger Hustle"** (two words, title case). Android package **`com.hangerhustle.app`**. Repo/URL stays `closet-to-cash` for now. |
 | ~6:05 PM | Android TWA built in `/workspace/closet-android/` (signed .aab + .apk). Name screen for "Hanger Hustle": GO (section 6). |
 | ~6:09 PM | eBay Developers account created (bottledhate.com@gmail.com), waiting on the email verification link. |
-| ~6:16 PM | Etsy account for her shop created and signed in on the box browser (Etsy shows username "[REDACTED]"), [REDACTED]; email + phone verified. |
+| ~6:16 PM | Etsy account for her shop created and signed in on the box browser with her Gmail (see private box manual); email + phone verified. |
 | ~6:17 PM | Etsy developer app **"hanger-hustle"** registered: status Pending Personal Approval (details in section 4). |
 | 6:17 PM | This manual started. Rule: every Hanger Hustle change gets logged here the same turn. |
 | 6:19 PM | **Michael bought hangerhustle.com.** He wants a landing page there once there's enough to show; it grows with the app. DNS/hosting hookup needs his OK. |
@@ -74,9 +76,9 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | Service | Status | Details |
 |---|---|---|
 | GitHub | done | Account `bottledhatecom-cmd`; public repo `closet-to-cash`; Pages from `main` root. |
-| Google Cloud | done | Project `closet-to-cash` under **bottledhate.com@gmail.com**. OAuth Web client ID (public, not a secret): `196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com`. Scopes: `openid email profile drive.appdata`. **Consent screen: Testing.** Test user: **[REDACTED]** (his wife). Authorized JavaScript origins: `https://bottledhatecom-cmd.github.io`, and **`https://app.hangerhustle.com` needs adding** for the domain move. |
+| Google Cloud | done | Project `closet-to-cash` under **bottledhate.com@gmail.com**. OAuth Web client ID (public, not a secret): `196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com`. Scopes: `openid email profile drive.appdata`. **Consent screen: Testing.** Test user: **her Gmail (see private box manual)** (his wife). Authorized JavaScript origins: `https://bottledhatecom-cmd.github.io`, and **`https://app.hangerhustle.com` needs adding** for the domain move. |
 | eBay Developers | started ~6:09 PM | Account with bottledhate.com@gmail.com; **pending the email verification link**. Next: create a keyset (sandbox + production), handle the account-deletion notification/opt-out, then RuName + OAuth. |
-| Etsy (her shop) | account ~6:16 PM | Account [REDACTED], signed in on Grok's box browser (Etsy username shows "[REDACTED]"); email + phone verified. **She still needs to open an Etsy shop.** |
+| Etsy (her shop) | account ~6:16 PM | Account her Gmail (see private box manual), signed in on Grok's box browser; email + phone verified. **She still needs to open an Etsy shop.** |
 | Etsy developer app | registered ~6:17 PM | Name **hanger-hustle**; status **Pending Personal Approval**; keystring (public API key) `w652vgwg86fb34usxl7pfoga`; limits 5 requests/second, 5,000/day; app page https://www.etsy.com/developers/register/preview/1526349664115. Settings: Seller Tools + Mobile; just myself/colleagues; non-commercial; upload/edit listings + read sales data. **Shared secret not recorded** (Michael keeps it). Next: after approval, set the OAuth callback URL and connect her shop. |
 | Depop | not started | Selling API by request: business@depop.com. |
 | Domain | bought 6:19 PM | **hangerhustle.com** at **ChangeIP**. `app.hangerhustle.com` → GitHub Pages (CNAME). Bare domain reserved for a future landing page. |
