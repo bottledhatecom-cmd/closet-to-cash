@@ -24,6 +24,7 @@
   - What it DOES: stores your items + photos on THIS device (IndexedDB), generates platform-tailored
     titles/descriptions you copy-paste, lets you push photos to the marketplace app via the share
     sheet, and tracks where each item is listed/sold so you remember to delist.
+  - Optional Google sign-in backs up to the user's OWN Drive (hidden appDataFolder) - still no backend.
   - Hosted copy (GitHub Pages) adds manifest.webmanifest + sw.js so it installs and opens offline.
   - Data lives only in this browser on this device. Use Backup > "Full backup (JSON)" regularly.
   - Fee defaults and character limits are approximations as of 2026 and change; edit them below.
@@ -177,6 +178,15 @@ details.ce .in{padding:0 12px 12px}
 .ce .g6 input{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:6px 8px}
 .sbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .hint{font-size:12px;color:var(--muted)}
+.top{position:relative}
+.acct-slot{position:absolute;right:0;top:calc(10px + env(safe-area-inset-top))}
+.acct{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--paper);border:1px solid var(--line);text-decoration:none;color:var(--ink);font:600 13px var(--sans)}
+.acct img,.acct .ini{width:30px;height:30px;border-radius:50%;object-fit:cover;background:var(--deep);color:#fff;display:inline-flex;align-items:center;justify-content:center}
+.acct .nm{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:#bbb;display:inline-block}.dot.ok{background:var(--sage)}.dot.pend{background:var(--mustard)}.dot.err{background:var(--red)}
+.av{width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 44px;background:var(--deep);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.gbtn{background:#fff;border-color:#dadce0;color:#3c4043}.gbtn[disabled]{opacity:.6}
+.gs{font-size:13px;color:var(--muted);margin-top:4px}.gs.err{color:var(--red);font-weight:600;background:var(--red-bg);border-radius:10px;padding:8px 10px}.gs.pend{color:#7a5a12}
 code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:12px;word-break:break-all}
 </style>
 </head>
@@ -196,6 +206,12 @@ const APP_TAGLINE = 'vintage inventory \u00b7 cross-listing helper';
 const SKU_PREFIX = 'V-';
 const IMG_MAX_PX = 1600, IMG_QUALITY = 0.8, THUMB_PX = 360;
 const DB_NAME = 'closet-to-cash-db';
+
+/* Google backup. Paste the OAuth *Web* client ID here (Cloud Console > APIs & Services > Credentials).
+   Empty = Google backup button shows disabled "coming soon"; nothing Google-related is loaded. */
+const GOOGLE_CLIENT_ID = '';
+const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.appdata';
+const AUTO_BACKUP_DELAY_MS = 10000;   // auto backup this long after the last edit (and when the app is hidden)
 
 const TYPES = ['dress','top','blouse','jacket','coat','jeans','pants','skirt','sweater','t-shirt','shoes','bag','accessory','other'];
 const TYPE_LABEL = {'t-shirt':'T-Shirt'};
@@ -263,18 +279,20 @@ function openDB(){
 }
 const os = (name,mode='readonly') => db.transaction(name,mode).objectStore(name);
 const getAllItems = () => reqP(os('items').getAll());
-const putItem = it => reqP(os('items','readwrite').put(it));
+const putItem = it => reqP(os('items','readwrite').put(it)).then(r=>{ markDirty(); return r; });
 const getMeta = k => reqP(os('meta').get(k)).then(r=>r?r.v:undefined);
 const setMeta = (k,v) => reqP(os('meta','readwrite').put({k,v}));
 // Photos are stored as ArrayBuffer + mime type (most compatible across Safari versions).
 async function getPhotos(itemId){ const ps=await reqP(os('photos').index('itemId').getAll(itemId)); return ps.sort((a,b)=>a.idx-b.idx); }
 const getAllPhotos = () => reqP(os('photos').getAll());
-const putPhoto = p => reqP(os('photos','readwrite').put(p));
-const delPhoto = id => reqP(os('photos','readwrite').delete(id));
+const putPhoto = async p => { if(!p.hash&&p.buf) p.hash=await hashBuf(p.buf); const r=await reqP(os('photos','readwrite').put(p)); markDirty(); return r; };
+const delPhoto = id => reqP(os('photos','readwrite').delete(id)).then(r=>{ markDirty(); return r; });
 const photoBlob = p => new Blob([p.buf],{type:p.type||'image/jpeg'});
 async function deleteItem(id){
   for(const p of await getPhotos(id)) await delPhoto(p.id);
   await reqP(os('items','readwrite').delete(id));
+  const t=(await getMeta('tombstones'))||{}; t[id]=Date.now(); await setMeta('tombstones',t);   // so the Drive backup drops it too
+  markDirty();
 }
 function nextSku(){
   return new Promise((res,rej)=>{
@@ -472,7 +490,7 @@ function route(){
 /* ---------- Inventory ---------- */
 function renderInventory(){
   $('#app').innerHTML=`
-  <header class="top"><h1>${esc(APP_NAME)}</h1><p class="tag">${esc(APP_TAGLINE)}</p>
+  <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}</h1><p class="tag">${esc(APP_TAGLINE)}</p>
     <svg class="ornament" viewBox="0 0 120 8" aria-hidden="true"><path d="M0 4h48M72 4h48" stroke="currentColor"/><circle cx="60" cy="4" r="3" fill="currentColor"/><circle cx="52" cy="4" r="1.5" fill="currentColor"/><circle cx="68" cy="4" r="1.5" fill="currentColor"/></svg></header>
   <section class="stats" id="stats"></section>
   <div id="globalAlert"></div>
@@ -758,10 +776,288 @@ async function sharePhotos(){
 }
 function downloadPhotos(){ DETAIL.files.forEach((f,i)=>setTimeout(()=>downloadBlob(f,f.name),i*400)); }
 
+/* ===================== Google sign-in + Drive backup (client-side only) =====================
+   - Google Identity Services *token client* gives a short-lived access token (about 1 hour). No backend.
+   - Scope drive.appdata = a hidden per-app folder in HER OWN Drive. This app can't see her other files,
+     and the folder doesn't show in the Drive UI (Drive > Settings > Manage apps shows it).
+   - Layout in appDataFolder:
+       closet-to-cash-inventory.json  -> {format,version,updatedAt,contentHash,skuCounter,items[],photos[],tombstones{}}
+                                          (items without thumbnails; photos[] = {id,itemId,idx,hash,type})
+       photo-<photoId>.jpg            -> one file per photo, appProperties {kind:'photo',photoId,itemId,hash}
+   - Backup = list folder, read cloud inventory, merge (newest updatedAt wins per item, cloud-only items kept,
+     deleted items dropped via tombstones), upload only photos whose id/hash isn't in the cloud yet,
+     delete cloud photos no longer referenced, write inventory. Backup never changes local data.
+   - Restore = explicit, confirmed, additive: adds cloud-only items, replaces local items only where the
+     cloud copy is newer (after confirm), never deletes local-only items. */
+const AUTH_KEY='ctc-google-auth';
+const DRIVE_API='https://www.googleapis.com/drive/v3', DRIVE_UPLOAD='https://www.googleapis.com/upload/drive/v3';
+const DRIVE_INV_NAME='closet-to-cash-inventory.json';
+class AuthNeeded extends Error{ constructor(m){ super(m||'Google sign-in needed'); this.name='AuthNeeded'; } }
+
+const Auth = {
+  token:null, exp:0, profile:null, silentTried:false,
+  enabled(){ return !!GOOGLE_CLIENT_ID; },
+  load(){ try{ const s=JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); if(s){ this.token=s.token; this.exp=s.exp||0; this.profile=s.profile||null; } }catch(e){} },
+  save(){ try{ localStorage.setItem(AUTH_KEY,JSON.stringify({token:this.token,exp:this.exp,profile:this.profile})); }catch(e){} },
+  signedIn(){ return this.enabled() && !!this.profile; },
+  valid(){ return !!this.token && Date.now() < this.exp-60000; },
+  setToken(t,expiresIn){ this.token=t; this.exp=Date.now()+(+expiresIn||3600)*1000; this.silentTried=false; this.save(); },
+  loadGis(){
+    if(window.google&&google.accounts&&google.accounts.oauth2) return Promise.resolve();
+    if(this._gisP) return this._gisP;
+    return this._gisP=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true;
+      s.onload=()=>res(); s.onerror=()=>{ this._gisP=null; rej(new Error('Could not load Google sign-in (are you offline?)')); }; document.head.appendChild(s); });
+  },
+  // prompt '' = no UI if she already consented; 'consent'/'select_account' = show Google's dialog
+  async request(prompt=''){
+    await this.loadGis();
+    return new Promise((res,rej)=>{
+      let done=false; const fin=(f,v)=>{ if(!done){ done=true; f(v); } };
+      const client=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID, scope:GOOGLE_SCOPES, hint:this.profile&&this.profile.email||undefined,
+        callback:r=>{ if(r.error) return fin(rej,new AuthNeeded(r.error_description||r.error));
+          if(google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r,'https://www.googleapis.com/auth/drive.appdata')) return fin(rej,new AuthNeeded('Please allow access to the app folder in Google Drive so backups can work.'));
+          this.setToken(r.access_token,r.expires_in); fin(res,r.access_token); },
+        error_callback:e=>fin(rej,new AuthNeeded(e&&e.type==='popup_closed'?'Sign-in window closed':'Google sign-in could not open ('+((e&&(e.message||e.type))||'blocked')+')'))});
+      client.requestAccessToken({prompt});
+      setTimeout(()=>fin(rej,new AuthNeeded('Google sign-in timed out')),120000);
+    });
+  },
+  // interactive=true only from a tap (popups need a user gesture)
+  async getToken(interactive=false){
+    if(this.valid()) return this.token;
+    if(!this.enabled()) throw new AuthNeeded('Google backup is not configured');
+    if(interactive) return this.request('');
+    if(!this.silentTried && document.visibilityState==='visible'){ this.silentTried=true; try{ return await this.request(''); }catch(e){} }
+    throw new AuthNeeded('Google sign-in expired \u2014 tap \u201cBack up now\u201d to reconnect');
+  },
+  async signIn(){
+    await this.request('');
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+this.token}});
+    if(!r.ok) throw new Error('Could not read your Google profile ('+r.status+')');
+    const u=await r.json(); this.profile={name:u.name||u.email,email:u.email,picture:u.picture||''}; this.save();
+  },
+  signOut(){
+    try{ if(this.token&&window.google&&google.accounts&&google.accounts.oauth2) google.accounts.oauth2.revoke(this.token,()=>{}); }catch(e){}
+    this.token=null; this.exp=0; this.profile=null; try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  }
+};
+
+/* ---- Drive REST v3 helpers ---- */
+async function gfetch(url,opts={},retry=true){
+  const tok=await Auth.getToken(!!opts.interactive);
+  const r=await fetch(url,{method:opts.method||'GET',body:opts.body,headers:{...(opts.headers||{}),Authorization:'Bearer '+tok}});
+  if(r.status===401&&retry){ Auth.token=null; Auth.exp=0; Auth.silentTried=false; Auth.save(); return gfetch(url,opts,false); }
+  if(!r.ok){ let msg=r.status+' '+(r.statusText||''); try{ const j=await r.json(); msg=(j.error&&j.error.message)||msg; }catch(e){}
+    const err=new Error('Google Drive: '+msg); err.status=r.status; if(r.status===401) throw new AuthNeeded('Google sign-in expired \u2014 tap \u201cBack up now\u201d to reconnect'); throw err; }
+  return r;
+}
+async function driveListAll(o){
+  const out=[]; let pt='';
+  do{ const r=await gfetch(`${DRIVE_API}/files?spaces=appDataFolder&pageSize=1000&fields=${encodeURIComponent('nextPageToken,files(id,name,appProperties,modifiedTime,size)')}${pt?'&pageToken='+encodeURIComponent(pt):''}`,o);
+      const j=await r.json(); out.push(...(j.files||[])); pt=j.nextPageToken||''; }while(pt);
+  return out;
+}
+function multipartBody(meta,data,mime){
+  const b='ctc'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  return {type:`multipart/related; boundary=${b}`, body:new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${mime}\r\n\r\n`, data, `\r\n--${b}--`])};
+}
+async function driveUpload({id,name,mime,data,appProperties},o={}){
+  const meta=id?{name,appProperties}:{name,parents:['appDataFolder'],appProperties};
+  const {body,type}=multipartBody(meta,data,mime);
+  const r=await gfetch(`${DRIVE_UPLOAD}/files${id?'/'+encodeURIComponent(id):''}?uploadType=multipart&fields=id,name,appProperties`,{...o,method:id?'PATCH':'POST',headers:{'Content-Type':type},body});
+  return r.json();
+}
+const driveDownload=(id,o)=>gfetch(`${DRIVE_API}/files/${encodeURIComponent(id)}?alt=media`,o);
+const driveDelete=(id,o)=>gfetch(`${DRIVE_API}/files/${encodeURIComponent(id)}`,{...o,method:'DELETE'}).catch(e=>{ if(e.status!==404) throw e; });
+
+async function hashBuf(buf){
+  try{ if(window.crypto&&crypto.subtle){ const h=await crypto.subtle.digest('SHA-256',buf); return Array.from(new Uint8Array(h).slice(0,16),b=>b.toString(16).padStart(2,'0')).join(''); } }catch(e){}
+  const u=new Uint8Array(buf); let h=0x811c9dc5; for(let i=0;i<u.length;i++){ h^=u[i]; h=Math.imul(h,16777619)>>>0; } return 'fnv'+h.toString(16)+'-'+u.length;
+}
+function hashStr(s){ let h=0x811c9dc5; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h.toString(16)+'-'+s.length; }
+
+/* ---- pure planning functions (unit-tested) ---- */
+const stripItem = it => { const c={...it}; delete c.thumb; return c; };
+function planBackup(local,remote,remotePhotoFiles){
+  // local: {items,photos,tomb,sku}; remote: cloud inventory or null; remotePhotoFiles: Map photoId -> Drive file
+  const tomb={...((remote&&remote.tombstones)||{})};
+  for(const [k,v] of Object.entries(local.tomb||{})) tomb[k]=Math.max(tomb[k]||0,v);
+  const win=new Map();   // id -> {item, src:'local'|'remote'}
+  for(const it of (remote&&remote.items)||[]) win.set(it.id,{item:it,src:'remote'});
+  for(const it of local.items){ const r=win.get(it.id); if(!r||(it.updatedAt||0)>=(r.item.updatedAt||0)) win.set(it.id,{item:it,src:'local'}); }
+  for(const [id,t] of Object.entries(tomb)){ const w=win.get(id); if(w&&(w.item.updatedAt||0)<=t) win.delete(id); }
+  const photos=[], upload=[];
+  for(const [id,w] of win){
+    if(w.src==='local') for(const p of local.photos.filter(p=>p.itemId===id)){
+      photos.push({id:p.id,itemId:id,idx:p.idx,hash:p.hash,type:p.type||'image/jpeg'});
+      const f=remotePhotoFiles.get(p.id); if(!f||!f.appProperties||f.appProperties.hash!==p.hash) upload.push(p);
+    } else for(const p of ((remote&&remote.photos)||[]).filter(p=>p.itemId===id)) photos.push(p);
+  }
+  const keep=new Set(photos.map(p=>p.id));
+  const deleteFiles=[...remotePhotoFiles.entries()].filter(([pid])=>!keep.has(pid)).map(([,f])=>f);
+  const items=[...win.values()].map(w=>stripItem(w.item)).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  photos.sort((a,b)=>a.id<b.id?-1:1);
+  const skuCounter=Math.max(local.sku||0,(remote&&remote.skuCounter)||0);
+  const contentHash=hashStr(JSON.stringify({items,photos,tomb,skuCounter}));
+  const unchanged=!!remote&&remote.contentHash===contentHash&&!upload.length&&!deleteFiles.length;
+  return {inventory:{format:'closet-to-cash-drive',version:1,app:APP_NAME,updatedAt:Date.now(),contentHash,skuCounter,items,photos,tombstones:tomb},upload,deleteFiles,unchanged,
+    cloudOnly:items.filter(i=>!local.items.some(l=>l.id===i.id)).length};
+}
+function planRestore(localItems,remote){
+  const res={add:[],update:[],keepLocal:[],same:0};
+  const byId=new Map(localItems.map(i=>[i.id,i])), bySku=new Map(localItems.filter(i=>i.sku).map(i=>[i.sku,i]));
+  for(const r of (remote&&remote.items)||[]){
+    const l=byId.get(r.id)||(r.sku&&bySku.get(r.sku));
+    if(!l) res.add.push(r);
+    else if((r.updatedAt||0)>(l.updatedAt||0)) res.update.push({remote:r,local:l});
+    else if((r.updatedAt||0)<(l.updatedAt||0)) res.keepLocal.push(l);
+    else res.same++;
+  }
+  return res;
+}
+
+/* ---- sync state, auto backup ---- */
+const SYNC={dirty:false,running:false,again:false,timer:null,state:'idle',msg:'',last:null};
+function setSync(state,msg){ SYNC.state=state; SYNC.msg=msg||''; updateSyncUI(); }
+function autoBackupOn(){ return Auth.signedIn() && localStorage.getItem('ctc-auto-backup')!=='off'; }
+function markDirty(){
+  if(SYNC.suspend) return;
+  SYNC.dirty=true;
+  if(!autoBackupOn()) return;
+  clearTimeout(SYNC.timer); setSync('pending','Changes waiting to back up\u2026');
+  SYNC.timer=setTimeout(()=>backupNow({reason:'auto'}),AUTO_BACKUP_DELAY_MS);
+}
+function flushOnHide(){ if(document.visibilityState==='hidden'&&SYNC.dirty&&autoBackupOn()){ clearTimeout(SYNC.timer); backupNow({reason:'hide'}); } }
+
+async function backupNow({reason='manual'}={}){
+  if(!Auth.signedIn()) return;
+  if(SYNC.running){ SYNC.again=true; return; }
+  SYNC.running=true; clearTimeout(SYNC.timer); SYNC.dirty=false;
+  const o={interactive:reason==='manual'};
+  setSync('running','Backing up to Google Drive\u2026');
+  try{
+    const files=await driveListAll(o);
+    const invFile=files.find(f=>f.name===DRIVE_INV_NAME);
+    const rp=new Map(); files.filter(f=>f.appProperties&&f.appProperties.kind==='photo').forEach(f=>rp.set(f.appProperties.photoId,f));
+    const remote=invFile?await (await driveDownload(invFile.id,o)).json():null;
+    const local={items:await getAllItems(),photos:await getAllPhotos(),tomb:(await getMeta('tombstones'))||{},sku:(await getMeta('sku'))||0};
+    for(const p of local.photos) if(!p.hash){ p.hash=await hashBuf(p.buf); await reqP(os('photos','readwrite').put(p)); }
+    const plan=planBackup(local,remote,rp);
+    let up=0;
+    for(const p of plan.upload){ setSync('running',`Uploading photo ${++up} of ${plan.upload.length}\u2026`); const f=rp.get(p.id);
+      await driveUpload({id:f&&f.id,name:`photo-${p.id}.jpg`,mime:p.type||'image/jpeg',data:new Blob([p.buf],{type:p.type||'image/jpeg'}),appProperties:{kind:'photo',photoId:p.id,itemId:p.itemId,hash:p.hash}},o); }
+    if(!plan.unchanged) await driveUpload({id:invFile&&invFile.id,name:DRIVE_INV_NAME,mime:'application/json',data:JSON.stringify(plan.inventory),appProperties:{kind:'inventory'}},o);
+    for(const f of plan.deleteFiles) await driveDelete(f.id,o);
+    const photoCount=plan.inventory.photos.length;
+    SYNC.last={at:Date.now(),uploaded:plan.upload.length,skipped:photoCount-plan.upload.length,deleted:plan.deleteFiles.length,items:plan.inventory.items.length,photos:photoCount,cloudOnly:plan.cloudOnly,unchanged:plan.unchanged};
+    await setMeta('lastBackup',SYNC.last);
+    setSync('ok','');
+    return SYNC.last;
+  }catch(err){
+    console.warn('Backup failed',err); SYNC.dirty=true;
+    setSync(err instanceof AuthNeeded?'auth':'error',err.message||String(err));
+    if(reason==='manual') throw err;
+  }finally{
+    SYNC.running=false;
+    if(SYNC.again){ SYNC.again=false; if(autoBackupOn()) markDirty(); }
+  }
+}
+
+async function restoreFromDrive({confirmFn=confirm}={}){
+  const o={interactive:true};
+  if(SYNC.running){ toast('A backup is running \u2014 try again in a moment'); return {done:false,reason:'busy'}; }
+  SYNC.running=true; clearTimeout(SYNC.timer);   // no backup may run while restoring
+  setSync('running','Checking your Google Drive backup\u2026');
+  try{
+    const files=await driveListAll(o), invFile=files.find(f=>f.name===DRIVE_INV_NAME);
+    if(!invFile){ setSync('ok',''); toast('No Google Drive backup found yet'); return {done:false,reason:'none'}; }
+    const remote=await (await driveDownload(invFile.id,o)).json();
+    const local=await getAllItems(), plan=planRestore(local,remote);
+    if(!plan.add.length&&!plan.update.length){ setSync('ok',''); toast('This device already has everything in your backup'); return {done:false,reason:'uptodate',plan}; }
+    const msg=`Restore from Google Drive?\n\n\u2022 ${plan.add.length} item(s) will be added\n\u2022 ${plan.update.length} item(s) are newer in Drive and will REPLACE the copy on this phone${plan.update.length?' ('+plan.update.slice(0,5).map(u=>u.local.sku).join(', ')+(plan.update.length>5?'\u2026':'')+')':''}\n\u2022 ${plan.keepLocal.length} item(s) are newer here and will be kept\n\nItems that are only on this phone are never deleted.`;
+    if(!confirmFn(msg)){ setSync('ok',''); return {done:false,reason:'cancelled',plan}; }
+    const fileByPhoto=new Map(files.filter(f=>f.appProperties&&f.appProperties.kind==='photo').map(f=>[f.appProperties.photoId,f]));
+    const tomb=(await getMeta('tombstones'))||{};
+    SYNC.suspend=true;
+    let n=0; const jobs=[...plan.add.map(r=>({r,targetId:r.id})),...plan.update.map(u=>({r:u.remote,targetId:u.local.id,old:u.local}))];
+    for(const {r,targetId} of jobs){
+      setSync('running',`Restoring item ${++n} of ${jobs.length}\u2026`);
+      const refs=(remote.photos||[]).filter(p=>p.itemId===r.id).sort((a,b)=>a.idx-b.idx);
+      const existing=await getPhotos(targetId), exById=new Map(existing.map(p=>[p.id,p])), keepIds=new Set();
+      let cover=null;
+      for(const ref of refs){
+        let rec=exById.get(ref.id);
+        if(!rec||(rec.hash&&ref.hash&&rec.hash!==ref.hash)){
+          const f=fileByPhoto.get(ref.id); if(!f) continue;
+          const buf=await (await driveDownload(f.id,o)).arrayBuffer();
+          rec={id:ref.id,itemId:targetId,idx:ref.idx,type:ref.type||'image/jpeg',buf,hash:ref.hash};
+        } else rec={...rec,itemId:targetId,idx:ref.idx};
+        await reqP(os('photos','readwrite').put(rec)); keepIds.add(rec.id); if(!cover) cover=rec;
+      }
+      for(const p of existing) if(!keepIds.has(p.id)) await delPhoto(p.id);
+      const it={...r,id:targetId,status:{...defaultStatus(),...(r.status||{})},photoCount:keepIds.size};
+      it.thumb=cover?await makeThumb(photoBlob(cover)):'';
+      await reqP(os('items','readwrite').put(it)); delete tomb[targetId];
+    }
+    await setMeta('tombstones',tomb);
+    if((remote.skuCounter||0)>((await getMeta('sku'))||0)) await setMeta('sku',remote.skuCounter);
+    SYNC.suspend=false;
+    await refresh(); setSync('ok',''); toast(`Restored ${jobs.length} item(s) from Google Drive`);
+    return {done:true,plan};
+  }catch(err){ SYNC.suspend=false; setSync(err instanceof AuthNeeded?'auth':'error',err.message||String(err)); throw err; }
+  finally{ SYNC.running=false; if(SYNC.dirty&&autoBackupOn()) markDirty(); }
+}
+
+/* ---- UI bits ---- */
+const fmtTime = t => t ? new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'never';
+function accountChipHTML(){
+  if(!Auth.signedIn()) return Auth.enabled()?`<a class="acct" href="#/backup" id="acctChip"><span class="dot off"></span>\u2601 Sign in</a>`:'';
+  const p=Auth.profile, dot={ok:'ok',idle:'ok',pending:'pend',running:'pend',error:'err',auth:'err'}[SYNC.state]||'ok';
+  return `<a class="acct" href="#/backup" id="acctChip" title="${esc(p.email)}">${p.picture?`<img src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="ini">${esc((p.name||'?')[0])}</span>`}<span class="nm">${esc((p.name||'').split(' ')[0])}</span><span class="dot ${dot}"></span></a>`;
+}
+function updateSyncUI(){
+  const chip=$('#acctSlot'); if(chip) chip.innerHTML=accountChipHTML();
+  const box=$('#gStatus'); if(!box) return;
+  const L=SYNC.last;
+  let h='';
+  if(SYNC.state==='running'||SYNC.state==='pending') h=`<div class="gs pend">\u23f3 ${esc(SYNC.msg)}</div>`;
+  else if(SYNC.state==='error'||SYNC.state==='auth') h=`<div class="gs err" role="alert">\u26a0 Backup problem: ${esc(SYNC.msg)}</div>`;
+  h+=`<div class="gs">Last backup: <b id="lastBackup">${fmtTime(L&&L.at)}</b>${L?` \u00b7 ${L.items} items, ${L.photos} photos${L.uploaded||L.deleted?` (${L.uploaded} uploaded, ${L.skipped} unchanged${L.deleted?', '+L.deleted+' removed':''})`:' (nothing new)'}`:''}</div>`;
+  if(L&&L.cloudOnly) h+=`<div class="gs pend">${L.cloudOnly} item(s) in your Drive backup aren't on this phone \u2014 tap \u201cRestore from Google Drive\u201d.</div>`;
+  box.innerHTML=h;
+}
+function googleSectionHTML(){
+  if(!Auth.enabled()) return `<fieldset><legend>Google account backup</legend>
+    <button class="btn gbtn block" id="gSignIn" disabled>${GOOGLE_G}Google backup coming soon</button>
+    <p class="note">Automatic backup to your own Google Drive is being set up. Until then, use the JSON backup below.</p></fieldset>`;
+  if(!Auth.signedIn()) return `<fieldset><legend>Google account backup</legend>
+    <button class="btn gbtn block" id="gSignIn">${GOOGLE_G}Sign in with Google</button>
+    <p class="note">Backs up your items and photos automatically to a private app folder in <b>your own</b> Google Drive. Only this app can see that folder; it can't see your other Drive files. The app works fine without signing in.</p></fieldset>`;
+  const p=Auth.profile;
+  return `<fieldset><legend>Google account backup</legend>
+    <div class="row" style="gap:12px">${p.picture?`<img class="av" src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av ini">${esc((p.name||'?')[0])}</span>`}
+      <div style="min-width:0"><b>${esc(p.name)}</b><div class="hint" style="overflow:hidden;text-overflow:ellipsis">${esc(p.email)}</div></div></div>
+    <div id="gStatus" style="margin-top:10px"></div>
+    <div class="pbtns"><button class="btn primary" id="gBackup">\u2601 Back up now</button><button class="btn" id="gRestore">\u2b07 Restore from Google Drive</button></div>
+    <label class="row" style="margin-top:12px;font-size:14px"><input type="checkbox" id="gAuto" ${localStorage.getItem('ctc-auto-backup')!=='off'?'checked':''} style="width:22px;height:22px"> Back up automatically after changes</label>
+    <button class="btn sm ghost" id="gSignOut" style="margin-top:8px">Sign out</button>
+    <p class="note">Signing out keeps everything on this phone. Your Drive backup stays in your Google account.</p></fieldset>`;
+}
+const GOOGLE_G='<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
+function bindGoogleSection(){
+  const si=$('#gSignIn'); if(si&&!si.disabled) si.onclick=async()=>{ si.disabled=true; try{ await Auth.signIn(); toast('Signed in as '+Auth.profile.name); renderBackup(); updateSyncUI(); backupNow({reason:'auto'}); }catch(e){ toast(e.message); si.disabled=false; } };
+  const b=$('#gBackup'); if(b) b.onclick=async()=>{ b.disabled=true; try{ const r=await backupNow({reason:'manual'}); if(r) toast(r.unchanged&&!r.uploaded?'Backup is up to date':`Backed up \u00b7 ${r.uploaded} photo(s) uploaded`); }catch(e){ toast(e.message); } b.disabled=false; };
+  const r=$('#gRestore'); if(r) r.onclick=async()=>{ r.disabled=true; try{ await restoreFromDrive(); }catch(e){ toast(e.message); } r.disabled=false; };
+  const a=$('#gAuto'); if(a) a.onchange=()=>{ localStorage.setItem('ctc-auto-backup',a.checked?'on':'off'); if(a.checked&&SYNC.dirty) markDirty(); };
+  const so=$('#gSignOut'); if(so) so.onclick=()=>{ if(!confirm('Sign out of Google? Your items stay on this phone and in your Drive backup.')) return; Auth.signOut(); clearTimeout(SYNC.timer); setSync('idle',''); renderBackup(); toast('Signed out'); };
+  updateSyncUI();
+}
+
 /* ---------- Backup / export / import ---------- */
 function renderBackup(){
   $('#app').innerHTML=`
-  <header class="top"><h1>Backup</h1><p class="tag">your data lives only on this device</p></header>
+  <header class="top"><h1>Backup</h1><p class="tag">your items live on this phone${Auth.signedIn()?' + your Google Drive':''}</p></header>
+  ${googleSectionHTML()}
   <fieldset><legend>Export</legend>
     <button class="btn primary block" id="expJson">\u2b07 Full backup (JSON, with photos)</button>
     <p class="note">Restores everything later or on a new phone. Save it to Files / iCloud / Google Drive.</p>
@@ -777,6 +1073,7 @@ function renderBackup(){
     <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>`;
   $('#expJson').onclick=exportJSON; $('#expCsv').onclick=exportCSV;
   $('#impJson').onchange=importJSON; $('#impComps').onchange=importComps;
+  bindGoogleSection();
   (async()=>{ let s=`${ITEMS.length} items.`; try{ if(navigator.storage?.estimate){ const e=await navigator.storage.estimate(); s+=` Using ~${(e.usage/1048576).toFixed(1)} MB.`; } if(navigator.storage?.persisted) s+=(await navigator.storage.persisted())?' Storage is persistent \u2713':' Storage not marked persistent (browser may clear it if space runs low).'; }catch(e){} $('#storeInfo').textContent=s; })();
 }
 const stamp=()=>new Date().toISOString().slice(0,10);
@@ -810,6 +1107,7 @@ async function importJSON(e){
     const d=JSON.parse(await f.text());
     if(!d||!Array.isArray(d.items)) throw new Error('Not a backup file');
     if(!confirm(`Import ${d.items.length} items and ${(d.photos||[]).length} photos into this device?`)) return;
+    const tb=(await getMeta('tombstones'))||{}; for(const it of d.items){ if(it.id) delete tb[it.id]; } await setMeta('tombstones',tb);
     for(const it of d.items){ if(!it.id) continue; it.status={...defaultStatus(),...(it.status||{})}; if(it.comps) try{ it.comps=normalizeComps(it.comps); }catch(_){ it.comps={}; } await putItem(it); }
     for(const p of (d.photos||[])){ if(!p.id||!p.data) continue; const {buf,type}=dataURLToBuf(p.data); await putPhoto({id:p.id,itemId:p.itemId,idx:p.idx||0,type,buf}); }
     let maxN=d.skuCounter||0; d.items.forEach(it=>{ const m=String(it.sku||'').match(/(\d+)$/); if(m) maxN=Math.max(maxN,+m[1]); });
@@ -850,6 +1148,10 @@ function addTouchIcon(){
   }
   try{ db=await openDB(); await refresh(); }
   catch(err){ $('#app').innerHTML=`<div class="empty"><h2>Storage unavailable</h2><p>${esc(err.message)}. Private browsing or some file previewers block storage \u2014 open this page in Safari/Chrome normally.</p></div>`; return; }
+  Auth.load();
+  try{ SYNC.last=(await getMeta('lastBackup'))||null; }catch(e){}
+  document.addEventListener('visibilitychange',flushOnHide); window.addEventListener('pagehide',()=>{ if(SYNC.dirty&&autoBackupOn()) backupNow({reason:'hide'}); });
+  window.addEventListener('online',()=>{ if(SYNC.dirty&&autoBackupOn()) markDirty(); });
   window.addEventListener('hashchange',route);
   route();
 })();
