@@ -1,6 +1,6 @@
 # HangHustle Manual
 
-The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:45 PM CT**.
+The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:50 PM CT**.
 
 - Master copy: `/workspace/shared-library/manuals/HangHustle-Manual.md` (Grok's box, shared by all of Michael's bots)
 - Repo copy: [`HANGHUSTLE-MANUAL.md`](https://github.com/bottledhatecom-cmd/closet-to-cash/blob/main/HANGHUSTLE-MANUAL.md)
@@ -65,6 +65,8 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | ~6:45 PM | **Price search v1 shipped (sw `ctc-v5`):** each item has a **Find prices** button: a smart search (brand + type + era + material, size for jeans/shoes) she can edit, one-tap links to each site's **sold** results where the site has them (eBay, Poshmark, Mercari, Grailed) or regular search marked "asking prices" (Depop, Vinted, Etsy, FB); a quick panel to jot low / typical / high / how many per site; a **Suggested price** (list price per site and overall, adjusted for condition, with plain-language reasons, a take-home goal and a "Use as my price" button). Every price row is labelled Sold or Asking, where it came from, and the date. Box-side **price scout** added (`price-scout/`): eBay Browse API (asking prices) turns on when the eBay keys exist; Etsy stub waits for approval. |
 | 6:41 PM | HTTPS certificate issued for app.hangerhustle.com (GitHub had to be nudged by removing and re-adding the custom domain); **Enforce HTTPS turned on**. Verified: app, privacy, terms and `/.well-known/assetlinks.json` all load over HTTPS; Google's asset-links checker sees `com.hangerhustle.app`; service worker, offline, install check and no JS errors all pass on the new address. Old github.io links redirect to https://app.hangerhustle.com/. |
 | 6:44 PM | Android 1.0.1 (versionCode 2) rebuilt straight from https://app.hangerhustle.com (final build in `dist/`). |
+| 6:44 PM | **Michael: Google sign-in must always let her pick the account** (for people with several Gmail accounts). |
+| ~6:50 PM | **Account chooser + Switch account (sw `ctc-v6`):** every sign-in she taps opens Google's account chooser (plus the consent screen only the first time on a device, or if she unticked Drive access). Quiet token renewals stay on the account she already picked, and if Google ever answers with a different account the app refuses it and stays on hers, never switching on its own. Settings shows **"Signed in as <email>"** in large type and a new **Switch account** button: it first warns that each Google account has its own backup and that her items stay on the phone (and that they'll also back up to the new account), then opens the chooser. Closing the chooser keeps her on the old account. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
