@@ -197,6 +197,26 @@ details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{m
 .av{width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 44px;background:var(--deep);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
 .gbtn{background:#fff;border-color:#dadce0;color:#3c4043}.gbtn[disabled]{opacity:.6}
 .gs{font-size:13px;color:var(--muted);margin-top:4px}.gs.err{color:var(--red);font-weight:600;background:var(--red-bg);border-radius:10px;padding:8px 10px}.gs.pend{color:#7a5a12}
+.fp-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:8px}
+.fp-links a.btn{justify-content:space-between;text-align:left;min-height:48px;flex-direction:column;align-items:flex-start;gap:0;padding:6px 10px}
+.fp-links a.btn small{font:600 10.5px var(--sans);color:var(--muted)}.fp-links a.btn small.sold{color:#35502f}
+.qe{border-top:1px solid #f0e6d8;padding:8px 0 4px}.qe:first-child{border-top:0}
+.qeh{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:14px}
+.qeh select{min-height:36px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:2px 6px;font-size:13px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
+.g4 label{font-size:11px;color:var(--muted);font-weight:600;min-width:0}
+.g4 input{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:6px 6px;font-size:16px}
+.clab{display:inline-block;margin-top:2px;font:700 10px var(--sans);padding:1px 6px;border-radius:6px;background:#eee6da;color:var(--muted);white-space:nowrap}
+.clab.sold{background:var(--sage-bg);color:#35502f}.clab.asking{background:#e8eef9;color:#1f4b8f}
+.rec{background:var(--gold-bg);border:1px solid #ecd39a;border-radius:12px;padding:12px;margin:0 0 10px}
+.rec .big{font:700 30px var(--serif);color:var(--deep)}
+.rec ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}.rec li{margin:2px 0}
+.rtable{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.rtable th{font:600 10.5px var(--sans);text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:right;padding:6px 4px;border-bottom:1px solid var(--line)}
+.rtable td{text-align:right;padding:7px 4px;border-bottom:1px solid #f0e6d8;white-space:nowrap}
+.rtable th:first-child,.rtable td:first-child{text-align:left;white-space:normal}
+.rtable tr.est td{color:var(--muted);font-style:italic}
+.rwhy{font-size:12px;color:var(--muted);white-space:normal!important;text-align:left!important;padding-top:0!important}
 code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:12px;word-break:break-all}
 </style>
 </head>
@@ -249,7 +269,7 @@ const PLATFORMS = {
             modeNote:'Bot will post through Etsy\u2019s official Open API v3 once Michael registers an Etsy app for her shop. Etsy \u201cvintage\u201d = at least 20 years old.'},
   facebook:{name:'FB Marketplace', short:'FB', color:'#1877f2', create:'https://www.facebook.com/marketplace/create/item', titleMax:100, descMax:null, mode:'prefill', on:false,
             modeNote:'No listing API for individuals and Meta bans automated access, so you publish it. Great for local pickup (no fee).'},
-  grailed: {name:'Grailed',  short:'Gr', color:'#111111', create:'https://www.grailed.com/sell', titleMax:null, descMax:null, mode:'prefill', on:false,
+  grailed: {name:'Grailed',  short:'Gr', color:'#111111', create:'https://www.grailed.com/sell', titleMax:60, descMax:null, mode:'prefill', on:false,
             modeNote:'Mostly menswear/streetwear. Grailed bans third-party tools without written consent, so you publish it.'},
 };
 const PKEYS = Object.keys(PLATFORMS);
@@ -272,17 +292,21 @@ const FEE_DEFAULTS = {
   facebook:{pct:10,   fixed:0,    note:'Local pickup $0; shipped 10% (min $0.80) incl. shipping+tax', checked:'2026-10-21'},
   grailed: {pct:null, fixed:null, note:'6% under $120 (min $1.99), 9% at $120+, plus 3.49% + $0.49 processing', checked:'2026-10-21'},
 };
-/* "Search sold comps" URLs. {q} = URL-encoded search terms. */
-const COMP_SEARCH = {
-  etsy:    'https://www.etsy.com/search?q={q}',
-  facebook:'https://www.facebook.com/marketplace/search/?query={q}',
-  grailed: 'https://www.grailed.com/sold?query={q}',
-  ebay:    'https://www.ebay.com/sch/i.html?_nkw={q}&LH_Sold=1&LH_Complete=1',
-  poshmark:'https://poshmark.com/search?query={q}&availability=sold_out',
-  mercari: 'https://www.mercari.com/search/?keyword={q}&status=sold_out',
-  depop:   'https://www.depop.com/search/?q={q}',
-  vinted:  'https://www.vinted.com/catalog?search_text={q}',
+/* "Find prices" search links. {q} = URL-encoded search terms. sold:true = the link opens SOLD/completed results.
+   Patterns checked 2026-10-21 (see HANDOFF). These are links she taps herself; the app never fetches these sites. */
+const PRICE_SEARCH = {
+  ebay:    {url:'https://www.ebay.com/sch/i.html?_nkw={q}&LH_Sold=1&LH_Complete=1&_sop=13', sold:true,  note:'Sold items, newest first (eBay shows ~90 days)'},
+  poshmark:{url:'https://poshmark.com/search?query={q}&availability=sold_out',            sold:true,  note:'Sold listings'},
+  mercari: {url:'https://www.mercari.com/search/?keyword={q}&status=sold_out',             sold:true,  note:'Sold listings'},
+  grailed: {url:'https://www.grailed.com/sold?query={q}',                                   sold:true,  note:'Sold listings (Grailed asks you to log in)'},
+  depop:   {url:'https://www.depop.com/search/?q={q}',                                      sold:false, note:'No sold filter: these are asking prices'},
+  vinted:  {url:'https://www.vinted.com/catalog?search_text={q}',                           sold:false, note:'Vinted hides sold items: asking prices'},
+  etsy:    {url:'https://www.etsy.com/search?q={q}',                                        sold:false, note:'Etsy has no sold search: asking prices'},
+  facebook:{url:'https://www.facebook.com/marketplace/search/?query={q}',                   sold:false, note:'Asking prices near you'},
 };
+const COMP_SEARCH = Object.fromEntries(Object.entries(PRICE_SEARCH).map(([k,v])=>[k,v.url]));   // kept for older code paths
+const searchURL = (p,q) => PRICE_SEARCH[p].url.replace('{q}',encodeURIComponent(q));
+const COMP_SOURCES = {manual:'you', 'ebay-browse':'eBay API', 'etsy-api':'Etsy API', import:'import', scout:'scout'};
 
 /* ===================== helpers ===================== */
 const $ = (s,r=document)=>r.querySelector(s);
@@ -406,7 +430,30 @@ function condSentence(it){
   else if(it.condition && it.condition!=='nwt') s += ' No major flaws noted.';
   return s.trim();
 }
-function clip(s,max){ if(!max||s.length<=max) return s; return s.slice(0,max-1).trimEnd()+'\u2026'; }
+function clip(s,max){ if(!max||s.length<=max) return s; return s.slice(0,max-3).trimEnd()+'...'; }
+/* ==== text sanitizer (unit-tested in /workspace/vltest/sanitize-test.js) ====
+   Everything the app copies or shares for posting goes through here. Field issue 2026-10-21: Vinted rejected a pasted
+   "Maroon Skirt" title ("too many symbol characters"), most likely hidden characters riding along with the paste. */
+function cleanText(v){
+  let s=String(v??'').normalize('NFC').replace(/\r\n?|[\u2028\u2029\u0085]/g,'\n');
+  s=s.replace(/[\u200B-\u200D\u2060\uFEFF\u00AD\u180E\u034F]/g,'');                       // zero-width, BOM, soft hyphen
+  s=s.replace(/[\t\v\f\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g,' ');                  // NBSP + unusual spaces
+  s=s.replace(/[\u2018\u2019\u201A\u201B\u2032\u02BC\u00B4\u0060]/g,"'").replace(/[\u201C\u201D\u201E\u201F\u2033\u00AB\u00BB]/g,'"')
+     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g,'-').replace(/\u2026/g,'...');                 // smart quotes, dashes
+  s=s.replace(/[\p{Cf}\p{Cc}]/gu,c=>c==='\n'?c:'');                                          // bidi + other control/format chars
+  s=s.replace(/([!?,;:_*~=+#|\/\\])\1+/g,'$1').replace(/[!?]{2,}/g,m=>m[0]).replace(/-{2,}/g,'-').replace(/\.{4,}/g,'...'); // punctuation runs
+  s=s.replace(/ {2,}/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n');
+  return s.trim();
+}
+const EMOJI_RE=/[\p{Extended_Pictographic}\p{So}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0E\uFE0F\u20E3]/gu;
+function cleanTitle(v,max){
+  let s=cleanText(String(v??'').replace(EMOJI_RE,' ')).replace(/\n+/g,' ').replace(/ {2,}/g,' ').trim();
+  s=s.replace(/^[\s\-|,.;:]+|[\s\-|,;:]+$/g,'');
+  if(max&&s.length>max){ s=s.slice(0,max+1).replace(/\s+\S*$/,'')||s.slice(0,max); s=s.slice(0,max).replace(/[\s\-|,;:]+$/,''); }
+  return s;
+}
+function cleanTags(v){ return String(v??'').split(',').map(t=>cleanTitle(t)).filter(Boolean).join(', '); }
+/* ==== end text sanitizer ==== */
 const tagify = s => '#'+String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 function generate(p,it){
   const P=PLATFORMS[p], ty=typeLabel(it.type)||'piece', kws=kwList(it), meas=measLines(it);
@@ -458,7 +505,7 @@ function generate(p,it){
       '', `Condition: ${condSentence(it)}`, '', 'Ships fast. Offers welcome!', `SKU ${it.sku||''}`].join('\n');
   }
   desc=desc.replace(/\n{3,}/g,'\n\n').trim();
-  const out={title, desc:clip(desc,P.descMax)};
+  const out={title:cleanTitle(title,P.titleMax), desc:clip(cleanText(desc),P.descMax)};
   if(P.tagsMax) out.tags=etsyTags(it).join(', ');
   return out;
 }
@@ -520,12 +567,82 @@ function normalizeComps(obj){
     const p=k.toLowerCase(); if(!PLATFORMS[p]) continue;
     const v=obj[k]||{}, o={};
     for(const f of ['low','median','high','count','feePct','feeFixed']){ const n=num(v[f]); if(n!=null) o[f]=n; }
+    // labels: where the numbers came from, sold vs asking, and when
+    if(typeof v.source==='string'&&v.source) o.source=v.source.slice(0,40);
+    if(v.type==='sold'||v.type==='asking') o.type=v.type;
+    if(typeof v.date==='string'&&/^\d{4}-\d{2}-\d{2}/.test(v.date)) o.date=v.date.slice(0,10);
+    if(typeof v.query==='string'&&v.query) o.query=v.query.slice(0,120);
     out[p]=o;
   }
   if(!Object.keys(out).length) throw new Error('No platform keys found (use ebay, poshmark, mercari, depop, vinted)');
   return out;
 }
-function compQuery(it){ return (it.compQuery && it.compQuery.trim()) || [it.brand, it.era&&it.era!=='Unknown'?(it.era==='Y2K'?'y2k':'vintage '+it.era):'vintage', it.color, it.type==='other'?'':it.type].filter(Boolean).join(' '); }
+/* Smart price-search query: brand + item type + the details that actually move price (era, notable material,
+   size only where buyers search by it). Kept short: marketplace search gets worse with every extra word. */
+const NOTABLE_MATERIALS = ['cashmere','silk','leather','suede','wool','mohair','angora','linen','velvet','velour','lace','sequin','beaded','denim','corduroy','satin','chiffon','fur','shearling','tweed','crochet','knit','mesh','pvc','vinyl','rayon','cotton'];
+const SIZE_MATTERS = {jeans:'w',pants:'w',shoes:'shoe'};
+function smartQuery(it){
+  const words=[], brand=String(it.brand||'').trim(), ty=it.type==='other'?'':typeLabel(it.type).toLowerCase();
+  const era=it.era&&it.era!=='Unknown'?(it.era==='Y2K'?'y2k':it.era==='2010s'?'':'vintage '+it.era):'vintage';
+  if(brand) words.push(brand);
+  if(era) words.push(era);
+  const matTxt=String(it.material||'').toLowerCase();
+  const mat=NOTABLE_MATERIALS.find(m=>new RegExp('\\b'+m+'\\b').test(matTxt));
+  // cotton is too common to help unless there is no brand
+  if(mat && (mat!=='cotton'||!brand) && !(mat==='denim'&&it.type==='jeans')) words.push(mat);
+  if(!brand){ const kw=kwList(it)[0]; if(kw && kw.split(' ').length<=2) words.push(kw.toLowerCase()); }
+  if(ty) words.push(ty);
+  const sz=String(it.size||'').trim();
+  if(sz && SIZE_MATTERS[it.type]==='w' && /^\d{2}$/.test(sz)) words.push('w'+sz);
+  else if(sz && SIZE_MATTERS[it.type]==='shoe' && /^\d{1,2}(\.5)?$/.test(sz)) words.push('size '+sz);
+  return words.join(' ').replace(/\s+/g,' ').trim();
+}
+function compQuery(it){ return (it.compQuery && it.compQuery.trim()) || smartQuery(it); }
+const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function compLabel(c){
+  if(!c||(c.median==null&&c.low==null&&c.high==null)) return '';
+  const t=c.type||'', src=c.source?(COMP_SOURCES[c.source]||c.source):'';
+  const d=c.date?new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+  const txt=[t?(t==='sold'?'Sold':'Asking'):'Unlabeled', src, d].filter(Boolean).join(' \u00b7 ');
+  return `<span class="clab ${t}" title="${t==='asking'?'Asking prices of items still for sale, not what things sold for':t==='sold'?'Prices items actually sold for':'Entered before labels existed'}">${esc(txt)}</span>`;
+}
+/* Suggested price. Per site: start at the typical (median) price; if those were asking prices, take ~10% off
+   (things usually sell below asking); adjust for her condition rating; keep inside the low-high range;
+   then add a little room for offers on sites where buyers haggle. */
+const COND_ADJ = {nwt:[1.15,'new with tags, +15%'], excellent:[1.05,'excellent condition, +5%'], verygood:[1,'very good condition, no change'], good:[0.9,'good condition (some wear), \u221210%'], fair:[0.75,'fair condition (visible flaws), \u221225%']};
+const OFFER_ROOM = {poshmark:0.10, mercari:0.05, ebay:0.05, depop:0.05, vinted:0.05, etsy:0, facebook:0.10, grailed:0.10};
+function listPriceForNet(p,goal,c){ if(!goal||goal<=0) return null; for(let x=Math.ceil(goal);x<goal*10+50;x++){ if(netAt(p,x,c)>=goal) return x; } return null; }
+function priceAdvice(it){
+  const comps=it.comps||{}, cond=COND_ADJ[it.condition]||[1,'no condition set, no change'];
+  const rows=[]; let sw=0, ss=0, nSold=0, nAsk=0;
+  for(const p of shownKeys(it)){
+    const c=comps[p]||{}; if(c.median==null) continue;
+    const asking=c.type==='asking', why=[];
+    let base=c.median; why.push(`typical ${asking?'asking':'sold'} ${money(c.median)}${c.count?` from ${c.count}`:''}`);
+    if(asking){ base*=0.9; why.push('asking prices, \u221210%'); }
+    let target=base*cond[0]; if(cond[0]!==1) why.push(cond[1]);
+    if(c.low!=null && target<c.low){ target=c.low; why.push('kept at the low end'); }
+    if(c.high!=null && target>c.high){ target=c.high; why.push('capped at the high end'); }
+    const room=OFFER_ROOM[p]||0, list=Math.round(target*(1+room)); if(room) why.push(`+${Math.round(room*100)}% room for offers`);
+    const n=c.count||1, conf=n>=8?'good':n>=3?'fair':'thin';
+    rows.push({p,c,target:Math.round(target),list,net:netAt(p,Math.round(target),c),conf,why,asking});
+    const w=n*(asking?0.5:1); ss+=target*w; sw+=w; if(asking) nAsk+=n; else nSold+=n;
+  }
+  if(!sw) return null;
+  const target=Math.round(ss/sw), list=Math.round(target*1.05);
+  // sites with no comps: estimate from the overall number (shown greyed)
+  for(const p of shownKeys(it)) if(!rows.find(r=>r.p===p)){ const room=OFFER_ROOM[p]||0; rows.push({p,c:comps[p]||{},target,list:Math.round(target*(1+room)),net:netAt(p,target,comps[p]||{}),conf:'none',why:['no prices for this site yet, based on the others'],est:true}); }
+  const order=shownKeys(it); rows.sort((a,b)=>order.indexOf(a.p)-order.indexOf(b.p));
+  const real=rows.filter(r=>!r.est), bestNet=real.reduce((a,b)=>b.net>a.net?b:a,real[0]);
+  const reasons=[];
+  reasons.push(`Based on ${[nSold?`${nSold} sold`:'',nAsk?`${nAsk} asking`:''].filter(Boolean).join(' + ')} price${nSold+nAsk===1?'':'s'} from ${real.map(r=>PLATFORMS[r.p].name).join(', ')}${nAsk?' (asking prices count half, since items usually sell below asking)':''}.`);
+  reasons.push(`Expect it to sell around ${money(target)}${cond[0]!==1?` (${cond[1]})`:''}.`);
+  reasons.push(`List at about ${money(list)} to leave a little room for offers.`);
+  if(bestNet) reasons.push(`Most take-home: ${PLATFORMS[bestNet.p].name}, about ${money(bestNet.net)} after fees.`);
+  if(nSold+nAsk<5) reasons.push('Only a few prices so far: check one or two more sites before trusting this.');
+  if(it.cost!=null && it.cost>0 && bestNet) reasons.push(`Profit after your ${money(it.cost)} cost: about ${money(bestNet.net-it.cost)}.`);
+  return {target,list,rows,reasons,bestNet,nSold,nAsk};
+}
 
 /* ===================== clipboard / download ===================== */
 async function copyText(text){
@@ -731,19 +848,26 @@ async function renderDetail(id){
   <p class="note">On a phone, Share sends the photos straight to the Poshmark / Depop / Mercari app or saves them to your camera roll.</p>`:''}
   <div class="summary"><div class="sku">${esc(it.sku)}</div><h2>${esc(buildTitle(it,80))}</h2>
     <div class="row between" style="margin-top:6px"><span class="price" style="font-size:22px">${money(it.price)}</span><span id="soldBox"></span></div>
+    <div class="sbtns"><button class="btn sm" id="goFind">\ud83d\udd0e Find prices</button></div>
     <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
 
   <h2 class="sec">Listings</h2>
   <p class="sub">\u201cYou publish\u201d sites: tap <b>Post to\u2026</b> \u2014 it copies the listing, sends the photos and opens the site; you just check and tap publish. \u201cBot\u201d sites will be posted for you once the bot is connected (not yet) \u2014 you can always post them yourself. Choose your sites in Settings.</p>
   <div id="pcards">${shownKeys(it).map(p=>pcardHTML(p,it)).join('')}</div>
 
+  <h2 class="sec" id="findSec">Find prices</h2>
+  <p class="sub">Tap a site to see what similar pieces sold for (opens in a new tab), then jot the prices below. The app never visits these sites by itself.</p>
+  <div class="comps" id="findPrices"></div>
+  <h2 class="sec">Suggested price</h2>
+  <div id="priceRec"></div>
   <h2 class="sec">Value comparison</h2>
   <p class="sub">Your sold comps per site + estimated payout after seller fees.</p>
   <div class="comps" id="comps"></div>
   <button class="btn danger block" id="delBtn" style="margin:10px 0 20px">Delete item</button>`;
   shownKeys(it).forEach(p=>bindPcard(p));
   updateStatusUI();
-  renderComps();
+  renderFind(); renderRec(); renderComps();
+  $('#goFind').onclick=()=>{ $('#findSec').scrollIntoView({behavior:'smooth',block:'start'}); };
   if(urls.length){ $('#shareBtn').onclick=sharePhotos; $('#dlBtn').onclick=downloadPhotos; }
   $('#delBtn').onclick=async()=>{ if(!confirm(`Delete ${it.sku} and its photos? This cannot be undone.`)) return; await deleteItem(it.id); await refresh(); toast('Deleted'); location.hash='#/'; };
 }
@@ -757,6 +881,7 @@ function pcardHTML(p,it){
     ${warn?`<div class="gs err" style="margin-top:8px">\u26a0 ${esc(warn)}</div>`:''}
     ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
          :`<button class="btn primary block post" type="button" style="margin-top:10px">\u261d Post to ${P.name}</button>`}
+    <div class="pbtns qcopy" style="grid-template-columns:1fr 1fr">${p==='depop'?'':'<button class="btn sm" type="button" data-copy="t">Copy title</button>'}<button class="btn sm" type="button" data-copy="d" ${p==='depop'?'style="grid-column:1/-1"':''}>Copy description</button></div>
     <div class="checklist" hidden></div>
     <details class="ed"><summary>\u270e Edit text \u00b7 copy pieces \u00b7 listing link</summary>
     <div class="lbl"><span>${p==='depop'?'Headline (Depop has no title field)':'Title'}</span><span class="cnt" data-c="t"></span></div>
@@ -767,7 +892,7 @@ function pcardHTML(p,it){
     <div class="pbtns">
       <button class="btn sm" data-copy="t">Copy title</button><button class="btn sm" data-copy="d">Copy description</button>
       ${P.tagsMax?'<button class="btn sm" data-copy="g">Copy tags</button>':''}
-      <button class="btn sm rust" data-copy="a">Copy all</button><a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site \u2197</a>
+      <a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site \u2197</a>
     </div>
     <div class="lbl"><span>Listing URL (optional)</span><a class="lnk" target="_blank" rel="noopener" style="display:none">open listing \u2197</a></div>
     <input class="inp url" type="url" inputmode="url" placeholder="Paste the live listing link" value="${esc(s.url||'')}">
@@ -788,28 +913,31 @@ const CHECK_EXTRA = {
 function showChecklist(p,copied,shared){
   const P=PLATFORMS[p], el=$(`.pcard[data-p="${p}"] .checklist`), it=DETAIL.item, L=cardListing(p);
   const steps=[
-    copied?'<b>Listing copied.</b> In the title box paste and keep the first line; paste the rest into the description (or use the copy buttons below).':'Copy didn\u2019t work \u2014 use the copy buttons below.',
+    copied?(p==='depop'?'<b>Description copied</b> (its first line is the headline). Paste it into the description box.':'<b>Title copied.</b> Paste it into the title box, then tap <b>Copy description</b> below and paste that into the description.'):'Copy didn\u2019t work \u2014 use the copy buttons below.',
     DETAIL.files.length?(shared?'Photos: in the share sheet you picked the app (or saved them).':'Photos were downloaded \u2014 add them from your Downloads/Photos.'):'This item has no photos yet.',
     ...(CHECK_EXTRA[p]||[]), `Price: <b>${money(it.price)}</b>. Check it over, then tap publish.`, 'Come back here and tap <b>I published it</b>.'];
   el.hidden=false;
   el.innerHTML=`<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
-    <div class="pbtns"><button class="btn sm" data-cl="t">Copy title only</button><button class="btn sm" data-cl="d">Copy description only</button>
+    <div class="pbtns">${p==='depop'?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${p==='depop'?'':'primary'}" data-cl="d">Copy description</button>
     ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a></div>
     <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed</button>`;
   el.querySelectorAll('[data-cl]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.cl;
     if(k==='done'){ await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
-    const L2=cardListing(p); const ok=await copyText(k==='t'?L2.title:k==='d'?L2.desc:L2.tags||''); toast(ok?'Copied':'Copy blocked'); });
+    const L2=cardListing(p); const ok=await copyText(k==='t'?L2.title:k==='d'?L2.desc:L2.tags||''); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'tags'}`:'Copy blocked'); });
 }
-function cardListing(p){ const el=$(`.pcard[data-p="${p}"]`); return {title:$('.ti',el).value, desc:$('.de',el).value, tags:$('.tg',el)?$('.tg',el).value:''}; }
+// Posting-ready text: sanitized, title cut to the site's limit. Raw textarea values are never copied as-is.
+function cardListing(p){ const el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p]; return {title:cleanTitle($('.ti',el).value,P.titleMax), desc:clip(cleanText($('.de',el).value),P.descMax), tags:$('.tg',el)?cleanTags($('.tg',el).value):''}; }
 // One tap: copy whole listing -> send photos (share sheet opens the marketplace app) or download them + open the site
 async function postFlow(p){
-  const P=PLATFORMS[p], txt=fullListing(cardListing(p));
+  // Title and description are copied as separate plain-text values: pasting a combined block into a title box
+  // is what trips limits like Vinted's 100 characters. Depop has no title field; its description starts with the headline.
+  const P=PLATFORMS[p], L=cardListing(p), txt=p==='depop'?L.desc:L.title;
   const copied=copySync(txt);                 // synchronous copy while the page still has focus
   const files=DETAIL.files, canShare=files.length&&navigator.canShare&&navigator.share&&navigator.canShare({files});
   if(!canShare) window.open(P.create,'_blank','noopener');   // must run inside the tap
   let ok=copied; if(!ok) ok=await copyText(txt);
   showChecklist(p,ok,canShare);
-  if(canShare){ try{ await navigator.share({files, title:cardListing(p).title}); }catch(e){ if(e.name!=='AbortError') downloadPhotos(); } }
+  if(canShare){ try{ await navigator.share({files, title:L.title}); }catch(e){ if(e.name!=='AbortError') downloadPhotos(); } }
   else if(files.length) downloadPhotos();
 }
 function copySync(text){
@@ -820,10 +948,13 @@ function copySync(text){
 function bindPcard(p){
   const it=DETAIL.item, el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p], ti=$('.ti',el), de=$('.de',el), tg=$('.tg',el);
   const counts=()=>{
+    // Counts what will actually be copied (after cleanup); notes hidden/odd characters that will be dropped.
     const ct=$('[data-c=t]',el), cd=$('[data-c=d]',el), tags=(de.value.match(/#[\w]+/g)||[]).length;
-    ct.textContent=ti.value.length+(P.titleMax?` / ${P.titleMax}`:' chars'); ct.classList.toggle('over',!!P.titleMax&&ti.value.length>P.titleMax);
-    cd.textContent=de.value.length+(P.descMax?` / ${P.descMax}`:' chars')+(p==='depop'?` \u00b7 ${tags}/5 #`:'');
-    cd.classList.toggle('over',(!!P.descMax&&de.value.length>P.descMax)||(p==='depop'&&tags>5));
+    const tc=cleanTitle(ti.value), dc=cleanText(de.value), tFix=tc!==ti.value.trim(), dFix=dc!==de.value.trim();
+    ct.textContent=tc.length+(P.titleMax?` / ${P.titleMax}`:' chars')+(tFix?' \u00b7 cleaned':'')+(P.titleMax&&tc.length>P.titleMax?' \u00b7 cut on copy':'');
+    ct.classList.toggle('over',!!P.titleMax&&tc.length>P.titleMax);
+    cd.textContent=dc.length+(P.descMax?` / ${P.descMax}`:' chars')+(p==='depop'?` \u00b7 ${tags}/5 #`:'')+(dFix?' \u00b7 cleaned':'');
+    cd.classList.toggle('over',(!!P.descMax&&dc.length>P.descMax)||(p==='depop'&&tags>5));
     if(tg){ const list=tg.value.split(',').map(x=>x.trim()).filter(Boolean), long=list.filter(x=>x.length>P.tagLen).length, cg=$('[data-c=g]',el);
       cg.textContent=`${list.length} / ${P.tagsMax} tags${long?` \u00b7 ${long} over ${P.tagLen} chars`:''}`; cg.classList.toggle('over',list.length>P.tagsMax||long>0); }
   };
@@ -832,8 +963,8 @@ function bindPcard(p){
   [ti,de,tg].filter(Boolean).forEach(x=>x.addEventListener('input',()=>{counts();saveCustom();}));
   $('.regen',el).onclick=async()=>{ delete it.custom[p]; const g=generate(p,it); ti.value=g.title; de.value=g.desc; if(tg) tg.value=g.tags||''; counts(); await putItem(it); toast('Regenerated'); };
   el.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
-    const k=b.dataset.copy, L=cardListing(p), txt=k==='t'?L.title:k==='d'?L.desc:k==='g'?L.tags:fullListing(L);
-    const ok=await copyText(txt); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':k==='g'?'tags':'title + description'} for ${P.name}`:'Copy blocked \u2014 long-press the text to copy');
+    const k=b.dataset.copy, L=cardListing(p), txt=k==='t'?L.title:k==='d'?L.desc:L.tags;
+    const ok=await copyText(txt); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'tags'} for ${P.name} (plain text)`:'Copy blocked \u2014 long-press the text to copy');
   });
   el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setStatus(p,b.dataset.s));
   $('.post',el).onclick=()=>postFlow(p);
@@ -873,17 +1004,14 @@ function renderComps(){
   const bestRow=A.rows.find(r=>r.p===A.best);
   $('#comps').innerHTML=`
     ${A.best?`<div class="suggest" id="suggestBox"><span style="font-size:26px">\ud83d\udca1</span><div>
-      ${A.suggested!=null?`<div>Suggested price <b id="suggested">${money(A.suggested)}</b> <span class="hint">(comp-weighted median)</span></div>`:''}
+      ${A.suggested!=null?`<div>Typical price <b id="suggested">${money(A.suggested)}</b> <span class="hint">(comp-weighted median)</span></div>`:''}
       <div style="font-size:14px">Best net: <strong id="bestNet">${PLATFORMS[A.best].name}</strong> \u00b7 ${money(A.basis==='median'?bestRow.netMed:bestRow.netAsk)} ${A.basis==='median'?'at its median sold price':'at your asking price'}</div>
     </div></div>`:`<p class="hint">Add an asking price or comps to see estimated payouts.</p>`}
     <div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Site / fee</th><th>Range</th><th>Med</th><th>#</th><th>Net@ask</th><th>Net@med</th></tr></thead><tbody>
-    ${A.rows.map(r=>`<tr class="${r.p===A.best?'best':''}" data-row="${r.p}"><td>${PLATFORMS[r.p].name}<div class="hint" style="font-weight:500">${feeTxt(r.p,r.c)}</div></td><td>${r.c.low!=null||r.c.high!=null?money(r.c.low)+'\u2013'+(r.c.high!=null?String(Math.round(r.c.high)):'?'):'\u2014'}</td><td>${money(r.c.median)}</td><td>${r.c.count??'\u2014'}</td><td>${money(r.netAsk)}</td><td>${money(r.netMed)}</td></tr>`).join('')}
+    ${A.rows.map(r=>`<tr class="${r.p===A.best?'best':''}" data-row="${r.p}"><td>${PLATFORMS[r.p].name}<div class="hint" style="font-weight:500">${feeTxt(r.p,r.c)}</div>${compLabel(r.c)}</td><td>${r.c.low!=null||r.c.high!=null?money(r.c.low)+'\u2013'+(r.c.high!=null?String(Math.round(r.c.high)):'?'):'\u2014'}</td><td>${money(r.c.median)}</td><td>${r.c.count??'\u2014'}</td><td>${money(r.netAsk)}</td><td>${money(r.netMed)}</td></tr>`).join('')}
     </tbody></table></div>
     <p class="hint" style="margin:8px 0 0">Net@ask = ${money(it.price)} asking minus fees. \u2605 best = highest net at that site's median sold price (or at asking if no comps). Fees are estimates; shipping not included.</p>
-    <div class="lbl"><span>Search sold comps for</span></div>
-    <input class="inp" id="compQ" value="${esc(q)}">
-    <div class="sbtns" id="compLinks">${shownKeys(it).map(p=>`<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${COMP_SEARCH[p].replace('{q}',encodeURIComponent(q))}">${PLATFORMS[p].name} sold \u2197</a>`).join('')}</div>
-    <p class="hint">Depop, Vinted, Etsy & Facebook links open a regular search (no sold-only URL filter) \u2014 use the site's \u201cSold\u201d toggle where it has one. Fee defaults last checked ${FEES_CHECKED}.</p>
+    <p class="hint">Labels show where each row came from: <span class="clab sold">Sold</span> = what items sold for, <span class="clab asking">Asking</span> = prices of items still for sale (usually higher than they sell for). Fee defaults last checked ${FEES_CHECKED}. Search links are under Find prices.</p>
     <details class="ce"><summary>\u270e Enter comps by site</summary><div class="in">
       ${shownKeys(it).map(p=>{ const c=it.comps[p]||{}; const f=(k,l,ph='')=>`<label>${l}<input data-cp="${p}" data-ck="${k}" inputmode="decimal" value="${esc(c[k]??'')}" placeholder="${ph}"></label>`;
         return `<div style="margin-top:10px"><b style="font-size:14px">${PLATFORMS[p].name}</b> <span class="hint">${esc(FEE_DEFAULTS[p].note)}</span>
@@ -895,10 +1023,63 @@ function renderComps(){
       <div class="sbtns"><button class="btn sm primary" id="applyJson">Apply JSON</button><button class="btn sm" id="copyJson">Copy current as JSON</button></div>
       <p class="hint">Per site: <code>low</code> <code>median</code> <code>high</code> <code>count</code>, optional <code>feePct</code> <code>feeFixed</code>. Sites not in the JSON keep their values.</p>
     </div></details>`;
-  $('#compQ').addEventListener('input',e=>{ const v=e.target.value; $$('#compLinks [data-sp]').forEach(a=>a.href=COMP_SEARCH[a.dataset.sp].replace('{q}',encodeURIComponent(v))); clearTimeout(e.target._t); e.target._t=setTimeout(()=>{ it.compQuery=v; putItem(it); },500); });
-  $('#saveComps').onclick=async()=>{ const c={}; $$('[data-cp]').forEach(i=>{ const n=num(i.value); if(n==null) return; (c[i.dataset.cp]=c[i.dataset.cp]||{})[i.dataset.ck]=n; }); it.comps=c; it.compsUpdatedAt=Date.now(); await putItem(it); renderComps(); toast('Comps saved'); };
-  $('#applyJson').onclick=async()=>{ try{ const c=normalizeComps(JSON.parse($('#compJson').value)); it.comps={...it.comps,...c}; it.compsUpdatedAt=Date.now(); await putItem(it); renderComps(); toast(`Comps applied for ${Object.keys(c).length} site(s)`); }catch(err){ toast('Invalid JSON: '+err.message); } };
+  $('#saveComps').onclick=async()=>{ const c={}; $$('[data-cp]').forEach(i=>{ const n=num(i.value); if(n==null) return; (c[i.dataset.cp]=c[i.dataset.cp]||{})[i.dataset.ck]=n; });
+    const shown=shownKeys(it), keep=Object.fromEntries(Object.entries(it.comps).filter(([k])=>!shown.includes(k)));
+    for(const p of Object.keys(c)){ const prev=it.comps[p]||{}; const same=['low','median','high','count'].every(k=>(prev[k]??null)===(c[p][k]??null));
+      if(same){ for(const k of ['source','type','date','query']) if(prev[k]!=null) c[p][k]=prev[k]; } else { c[p].source='manual'; c[p].type=prev.type||(PRICE_SEARCH[p].sold?'sold':'asking'); c[p].date=todayISO(); } }
+    it.comps={...keep,...c}; it.compsUpdatedAt=Date.now(); await putItem(it); renderPricing(); toast('Comps saved'); };
+  $('#applyJson').onclick=async()=>{ try{ const c=normalizeComps(JSON.parse($('#compJson').value)); it.comps={...it.comps,...c}; it.compsUpdatedAt=Date.now(); await putItem(it); renderPricing(); toast(`Comps applied for ${Object.keys(c).length} site(s)`); }catch(err){ toast('Invalid JSON: '+err.message); } };
   $('#copyJson').onclick=async()=>{ const ok=await copyText(JSON.stringify(it.comps,null,2)); toast(ok?'Comps JSON copied':'Copy blocked'); };
+}
+function renderPricing(){ renderFind(); renderRec(); renderComps(); }
+function renderFind(){
+  const it=DETAIL.item, q=compQuery(it), keys=shownKeys(it);
+  $('#findPrices').innerHTML=`
+    <div class="lbl"><label for="compQ">Search for</label><button class="btn sm ghost" id="qReset" ${it.compQuery?'':'hidden'}>\u21ba Smart search</button></div>
+    <input class="inp" id="compQ" value="${esc(q)}" autocomplete="off" enterkeyhint="search">
+    <p class="hint" style="margin:4px 0 0">Built from brand, type, era, material${['jeans','pants','shoes'].includes(it.type)?' and size':''}. Edit it if the results look off (fewer words = more results).</p>
+    <div class="fp-links" id="compLinks">${keys.map(p=>{ const S=PRICE_SEARCH[p]; return `<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${esc(searchURL(p,q))}"><span>${PLATFORMS[p].name} ${S.sold?'sold':'search'} \u2197</span><small class="${S.sold?'sold':''}">${esc(S.note)}</small></a>`; }).join('')}</div>
+    <div class="lbl" style="margin-top:14px"><span>Jot what you saw</span><span class="hint">Typical = the price most of them went for</span></div>
+    <div id="quickEntry">${keys.map(p=>{ const c=it.comps[p]||{}, S=PRICE_SEARCH[p], t=c.type||(S.sold?'sold':'asking');
+      const f=(k,l)=>`<label>${l}<input data-qp="${p}" data-qk="${k}" inputmode="decimal" value="${esc(c[k]??'')}" aria-label="${PLATFORMS[p].name} ${l}"></label>`;
+      return `<div class="qe" data-qe="${p}"><div class="qeh"><b>${PLATFORMS[p].name}</b><span>${compLabel(c)} <select data-qt="${p}" aria-label="${PLATFORMS[p].name} price type"><option value="sold" ${t==='sold'?'selected':''}>Sold prices</option><option value="asking" ${t==='asking'?'selected':''}>Asking prices</option></select></span></div>
+        <div class="g4">${f('low','Low $')}${f('median','Typical $')}${f('high','High $')}${f('count','How many')}</div></div>`; }).join('')}</div>
+    <button class="btn primary block" id="saveQuick" style="margin-top:10px">Save prices</button>`;
+  const qi=$('#compQ');
+  qi.addEventListener('input',e=>{ const v=e.target.value; $$('#compLinks [data-sp]').forEach(a=>a.href=searchURL(a.dataset.sp,v)); $('#qReset').hidden=false; clearTimeout(e.target._t); e.target._t=setTimeout(()=>{ it.compQuery=v; putItem(it); },500); });
+  $('#qReset').onclick=async()=>{ it.compQuery=''; await putItem(it); renderFind(); toast('Back to the smart search'); };
+  $('#saveQuick').onclick=async()=>{
+    let n=0;
+    for(const p of keys){
+      const vals={}; $$(`[data-qp="${p}"]`).forEach(i=>{ vals[i.dataset.qk]=num(i.value); });
+      const prev=it.comps[p]||{}, type=$(`[data-qt="${p}"]`).value;
+      const any=['low','median','high','count'].some(k=>vals[k]!=null);
+      const changed=['low','median','high','count'].some(k=>(prev[k]??null)!==(vals[k]??null)) || (prev.type||null)!==type;
+      if(!any){ if(['low','median','high','count'].some(k=>prev[k]!=null)){ const o={...prev}; ['low','median','high','count','source','type','date','query'].forEach(k=>delete o[k]); if(Object.keys(o).length) it.comps[p]=o; else delete it.comps[p]; n++; } continue; }
+      if(!changed) continue;
+      if(vals.median==null && vals.low!=null && vals.high!=null) vals.median=Math.round((vals.low+vals.high)/2);
+      const o={...prev}; ['low','median','high','count'].forEach(k=>{ if(vals[k]!=null) o[k]=vals[k]; else delete o[k]; });
+      o.source='manual'; o.type=type; o.date=todayISO(); o.query=(qi.value||'').slice(0,120); it.comps[p]=o; n++;
+    }
+    it.compsUpdatedAt=Date.now(); await putItem(it); renderPricing(); toast(n?`Prices saved for ${n} site${n>1?'s':''}`:'Nothing changed');
+  };
+}
+function renderRec(){
+  const it=DETAIL.item, R=priceAdvice(it), el=$('#priceRec');
+  if(!R){ el.innerHTML=`<div class="comps"><p class="hint" style="margin:0">Find prices above and jot a typical price for at least one site, and a suggested price appears here.</p></div>`; return; }
+  const goal=it.targetNet!=null?it.targetNet:null;
+  el.innerHTML=`<div class="rec" id="recBox"><div class="row between" style="align-items:flex-end;gap:8px;flex-wrap:wrap"><div><div class="hint">List it at about</div><div class="big" id="recList">${money(R.list)}</div><div class="hint">expect to sell around <b id="recTarget">${money(R.target)}</b></div></div>
+      ${it.price!==R.list?`<button class="btn sm primary" id="useRec">Use ${money(R.list)} as my price</button>`:`<span class="hint">\u2713 This is your asking price</span>`}</div>
+    <ul id="recWhy">${R.reasons.map(r=>`<li>${esc(r)}</li>`).join('')}</ul></div>
+    <div class="comps"><div style="overflow-x:auto"><table class="rtable" id="recTable"><thead><tr><th>Site</th><th>List at</th><th>Sells ~</th><th>You get</th>${goal?`<th>For ${money(goal)}</th>`:''}</tr></thead><tbody>
+    ${R.rows.map(r=>`<tr class="${r.est?'est':''}" data-rec="${r.p}"><td>${r.p===R.bestNet?.p?'\u2605 ':''}${PLATFORMS[r.p].name}</td><td><b>${money(r.list)}</b></td><td>${money(r.target)}</td><td>${money(r.net)}</td>${goal?`<td>${money(listPriceForNet(r.p,goal,r.c))}</td>`:''}</tr>
+      <tr class="${r.est?'est':''}"><td colspan="${goal?5:4}" class="rwhy">${esc(r.why.join(' \u00b7 '))}${r.conf==='thin'?' \u00b7 only 1\u20132 prices, low confidence':''}</td></tr>`).join('')}
+    </tbody></table></div>
+    <label class="lbl" for="goalIn" style="margin-top:12px"><span>Take-home goal (optional)</span><span class="hint">shows the price you'd need on each site</span></label>
+    <input class="inp" id="goalIn" inputmode="decimal" placeholder="e.g. 50" value="${goal!=null?esc(goal):''}">
+    <p class="hint" style="margin:6px 0 0">\u201cYou get\u201d = sell price minus that site's seller fees (estimates, shipping not included). Your asking price stays as you set it until you tap \u201cUse\u201d.</p></div>`;
+  const u=$('#useRec'); if(u) u.onclick=async()=>{ it.price=R.list; await putItem(it); await refresh(); const y=scrollY; await renderDetail(it.id); scrollTo(0,y); toast(`Asking price set to ${money(R.list)}`); };
+  $('#goalIn').addEventListener('change',async e=>{ it.targetNet=num(e.target.value); if(it.targetNet==null) delete it.targetNet; await putItem(it); renderRec(); });
 }
 async function sharePhotos(){
   const files=DETAIL.files;
