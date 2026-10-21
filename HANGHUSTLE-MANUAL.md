@@ -1,6 +1,6 @@
 # HangHustle Manual
 
-The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:33 PM CT**.
+The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:45 PM CT**.
 
 - Master copy: `/workspace/shared-library/manuals/HangHustle-Manual.md` (Grok's box, shared by all of Michael's bots)
 - Repo copy: [`HANGHUSTLE-MANUAL.md`](https://github.com/bottledhatecom-cmd/closet-to-cash/blob/main/HANGHUSTLE-MANUAL.md)
@@ -57,7 +57,12 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | 6:19 PM | Michael approved moving the app to **app.hangerhustle.com** (bare hangerhustle.com reserved for the landing page). Registrar/DNS: **ChangeIP** (changeip.com). CNAME `app` → `bottledhatecom-cmd.github.io`. |
 | ~6:21 PM | Fixed: on narrow phones (360px) the "Sign in" pill covered the title. The pill now sits on its own row under 520px wide. Service worker VERSION `ctc-v4`. `.well-known/assetlinks.json` added to the repo for the Android app. |
 | ~6:22 PM | **App moved to app.hangerhustle.com:** repo `CNAME` file + GitHub Pages custom domain set; DNS check passed (CNAME found, HTTPS eligible). The old github.io address now redirects to the new one. HTTPS certificate requested from GitHub (Let's Encrypt), waiting for it before HTTPS can be enforced. |
+| 6:24 PM | **Michael's idea, logged as the next planned feature (plan only):** AI drafts each item's listing description from photos and details, and when unsure (brand, size, material, era, flaws, measurements) shows quick tap-to-answer question cards instead of guessing. See section 9. |
+| 6:25 PM | **Michael approved automatic price search** (first version): in-app "Find prices" and a box-side price scout using official APIs only. No scraping of Poshmark, Mercari, Vinted or eBay. |
 | ~6:32 PM | Android app rebuilt for the new host: `com.hangerhustle.app` **1.0.1 (versionCode 2)**, start URL `https://app.hangerhustle.com/`. The 1.0.0 (github.io) build is obsolete. |
+| 6:34 PM | **Field issue:** on Vinted she pasted the title "Maroon Skirt" and got "Pick no more than 100 characters for the title, Title contains too many symbol characters". The words were fine; the paste most likely carried hidden characters (or the whole title + description block, which the old Post button copied as one). |
+| ~6:45 PM | **Fix for the Vinted paste issue (sw `ctc-v5`):** everything the app copies or shares is cleaned first: hidden zero-width characters, soft hyphens, direction marks and other invisible characters removed; odd spaces made normal; smart quotes/dashes made plain; repeated spaces and punctuation squashed; emoji dropped from titles. Titles are cut to each site's limit (Vinted 100, eBay 80, Poshmark 80, Mercari 80, Etsy 140, Grailed 60, FB 100; Depop has no title, its description's first line is the headline). Title and description are now copied **separately** as plain text: "Post to" copies only the title, then a "Copy description" button; every site card has visible **Copy title** / **Copy description** buttons. The counter shows the cleaned length and says "cleaned" when something will be removed. "Copy all" removed. |
+| ~6:45 PM | **Price search v1 shipped (sw `ctc-v5`):** each item has a **Find prices** button: a smart search (brand + type + era + material, size for jeans/shoes) she can edit, one-tap links to each site's **sold** results where the site has them (eBay, Poshmark, Mercari, Grailed) or regular search marked "asking prices" (Depop, Vinted, Etsy, FB); a quick panel to jot low / typical / high / how many per site; a **Suggested price** (list price per site and overall, adjusted for condition, with plain-language reasons, a take-home goal and a "Use as my price" button). Every price row is labelled Sold or Asking, where it came from, and the date. Box-side **price scout** added (`price-scout/`): eBay Browse API (asking prices) turns on when the eBay keys exist; Etsy stub waits for approval. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
@@ -123,6 +128,21 @@ Sources: underpricedai.com/blog/best-cross-listing-apps, vylist.ai/crosslisting-
 
 Sources: grailed.com/about/terms; facebook.com/legal/automated_data_collection_terms; developers.whatnot.com; Vestiaire Help Center "Professional seller: Listing Solutions"; help.etsy.com "How to Use Etsy's API"; developers.etsy.com; eBay developer docs.
 
+### Price-search links (checked 2026-10-21 ~6:30 PM CT)
+These are links she taps herself; the app and the scout never load these sites.
+| Site | Link opens | How checked |
+|---|---|---|
+| eBay | **Sold** (`LH_Sold=1&LH_Complete=1`, newest first `_sop=13`; eBay keeps ~90 days) | Current 2026 guides; eBay blocks plain fetches (403) |
+| Poshmark | **Sold** (`availability=sold_out`) | Fetched once: page returned sold listings |
+| Mercari | **Sold** (`status=sold_out`) | Current US search-parameter docs; Cloudflare blocks plain fetches |
+| Grailed | **Sold** (`/sold?query=`) | Grailed asks for a login before showing sold results |
+| Depop | Regular search = asking prices | No public sold filter (sold search only for boosted sellers) |
+| Vinted | Regular search = asking prices | Vinted hides sold items and prices |
+| Etsy | Regular search = asking prices | Etsy has no sold-item search |
+| FB Marketplace | Regular search = asking prices | — |
+
+**Etsy API key rule (2026):** every Etsy v3 request needs `x-api-key: <keystring>:<shared secret>` (keystring alone no longer works). We still need the shared secret once the app is approved.
+
 ## 9. Open to-dos
 1. **Finish the domain move to app.hangerhustle.com:**
    - Wait for GitHub's HTTPS certificate, then turn on "Enforce HTTPS" (until then the app is plain http on the new address, so Google sign-in, offline mode and install don't work there).
@@ -131,13 +151,19 @@ Sources: grailed.com/about/terms; facebook.com/legal/automated_data_collection_t
    - Install the new Android build (1.0.1) / re-install the home-screen app from the new address.
 2. **Landing page on hangerhustle.com:** build once there's enough content; it grows with the app. DNS/hosting hookup needs Michael's OK.
 3. **Google consent screen:** keep her as test user; publish it (privacy/terms are live) when ready. In Testing, sign-in must be renewed every 7 days.
-4. **eBay:** click the verification email; create keysets; decide where the secret and refresh token live.
-5. **Etsy:** wait for personal-app approval; she opens her Etsy shop; set OAuth callback URL; connect the shop.
+4. **eBay:** click the verification email; create keysets; decide where the secret and refresh token live. Once the production keyset exists, put the App ID / Cert ID on the box as `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` (never in the app) and the price scout starts filling eBay asking prices. Real **sold** prices by API need eBay's Marketplace Insights API (restricted; apply separately).
+5. **Etsy:** wait for personal-app approval; she opens her Etsy shop; set OAuth callback URL; connect the shop. For the price scout also note the app's **shared secret** (`ETSY_API_KEY` + `ETSY_SHARED_SECRET` on the box).
 6. **Depop:** email business@depop.com for Selling API access.
 7. **Build the bot posting** for eBay/Etsy/Depop (the app already has "Queue for bot"); decide how the bot reads new items (Drive appdata is private to the app).
 8. **Play Console:** create the app, internal test, then closed test with 12 testers × 14 days; add Play's signing fingerprint to assetlinks.
 9. **Real-phone testing** on her Android phone (camera, share sheet, Post flow, install, Google sign-in), then iPhone.
 10. Back up the Android signing key offline.
+11. **Real-phone check of the Vinted paste fix:** have her paste a title from the app into Vinted again and confirm it's accepted.
+12. **Next planned feature (plan only, not built): AI listing drafts with question cards** (Michael's idea, 2026-10-21 6:24 PM CT)
+    - The AI drafts each item's listing description from her photos and the details she entered.
+    - When it isn't sure about something (brand, size, material, era, flaws, measurements), it does **not** guess. It shows quick **tap-to-answer question cards** instead, e.g. "Is this tag a size M or L?" with tap choices plus "not sure" / type-your-own; "I see a mark near the hem, is that a flaw?" (yes / no / photo was dirty); "Pit-to-pit?" with a number pad.
+    - Her answers fill the item fields, then the draft is regenerated per site (titles still go through the same sanitizer and limits).
+    - Open questions for Michael before building: which AI service and who pays; photos leave the phone for the AI call (needs privacy-policy update and her OK); runs in the app vs. on the bot's box; keys never in the client (needs a small backend or the box).
 
 ## 10. How to update this manual
 - Every bot that works on Hanger Hustle **adds a line to the decision log (section 3) in the same turn** as the change, with the CT time.
