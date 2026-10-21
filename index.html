@@ -3,24 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Closet to Cash</title>
+<title>Hanger Hustle</title>
 <meta name="theme-color" content="#7a3a26">
 <meta name="description" content="Offline vintage clothing inventory and cross-listing helper">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Closet to Cash">
+<meta name="apple-mobile-web-app-title" content="Hanger Hustle">
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237a3a26'/%3E%3Cpath d='M32 14a6 6 0 0 1 6 6c0 3-2 4-4 5l-2 1v3l20 14c2 1 1 4-1 4H13c-2 0-3-3-1-4l20-14' fill='none' stroke='%23f7efe1' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <!--
-  CLOSET TO CASH - single-file, offline vintage inventory + cross-listing helper.
+  Hanger Hustle - single-file, offline vintage inventory + cross-listing helper.
 
   HONEST NOTE ON WHAT THIS DOES / DOESN'T DO:
-  - It does NOT post listings to Poshmark, eBay, Depop, Vinted or Mercari. Those marketplaces
-    don't offer public listing APIs for individual sellers (eBay has a developer Sell API, but it
-    needs a developer account, OAuth and a server - out of scope for a no-backend file).
+  - It does NOT post listings by itself. Posting plan (2026-10-21): a separate bot will post to eBay and
+    Etsy via their official APIs and to Depop via its Selling API (Depop's Terms allow crosslisting tools);
+    Poshmark, Mercari, Vinted, FB Marketplace and Grailed ban bots, so she publishes those herself from a
+    pre-filled listing ("Post to ..." button). The bot is not built yet; "Queue for bot" only marks items.
   - What it DOES: stores your items + photos on THIS device (IndexedDB), generates platform-tailored
     titles/descriptions you copy-paste, lets you push photos to the marketplace app via the share
     sheet, and tracks where each item is listed/sold so you remember to delist.
@@ -178,6 +179,13 @@ details.ce .in{padding:0 12px 12px}
 .ce .g6 input{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:6px 8px}
 .sbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .hint{font-size:12px;color:var(--muted)}
+.mode{display:inline-block;margin-top:3px;font:700 11px var(--sans);padding:3px 8px;border-radius:999px;letter-spacing:.2px}
+.mode.bot{background:#e8eef9;color:#1f4b8f}.mode.you{background:var(--gold-bg);color:#7a5a12}
+.checklist{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
+.checklist ol{margin:0;padding-left:20px}.checklist li{margin:4px 0}
+details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
+.sites label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}.sites input{width:22px;height:22px}
+.foot{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 24px}.foot a{color:var(--muted)}
 .top{position:relative}
 .acct-slot{position:absolute;right:0;top:calc(10px + env(safe-area-inset-top))}
 .acct{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--paper);border:1px solid var(--line);text-decoration:none;color:var(--ink);font:600 13px var(--sans)}
@@ -195,21 +203,21 @@ code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:12px;word-br
 <nav class="nav" id="nav">
   <a href="#/" data-nav="inv"><span class="i">&#129530;</span>Inventory</a>
   <a href="#/add" class="add" data-nav="add" aria-label="Add item"><span class="plus">+</span></a>
-  <a href="#/backup" data-nav="backup"><span class="i">&#128190;</span>Backup</a>
+  <a href="#/backup" data-nav="backup"><span class="i">&#9881;&#65039;</span>Settings</a>
 </nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
 /* ===================== CONFIG (edit freely) ===================== */
-const APP_NAME = 'Closet to Cash';           // <- change the app name here
+const APP_NAME = 'Hanger Hustle';           // <- change the app name here
 const APP_TAGLINE = 'vintage inventory \u00b7 cross-listing helper';
 const SKU_PREFIX = 'V-';
 const IMG_MAX_PX = 1600, IMG_QUALITY = 0.8, THUMB_PX = 360;
-const DB_NAME = 'closet-to-cash-db';
+const DB_NAME = 'closet-to-cash-db';   // kept from the app's first name so existing data keeps working (as are 'ctc-' storage keys and the Drive file name)
 
-/* Google backup. Paste the OAuth *Web* client ID here (Cloud Console > APIs & Services > Credentials).
-   Empty = Google backup button shows disabled "coming soon"; nothing Google-related is loaded. */
-const GOOGLE_CLIENT_ID = '';
+/* Google backup. OAuth *Web* client ID from Cloud project "closet-to-cash" (public ID, not a secret).
+   Empty = Google backup button shows disabled "coming soon". Google's script only loads when she taps Sign in. */
+const GOOGLE_CLIENT_ID = '196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.appdata';
 const AUTO_BACKUP_DELAY_MS = 10000;   // auto backup this long after the last edit (and when the app is hidden)
 
@@ -218,15 +226,37 @@ const TYPE_LABEL = {'t-shirt':'T-Shirt'};
 const ERAS = ['40s','50s','60s','70s','80s','90s','Y2K','2010s','Unknown'];
 const CONDITIONS = [['nwt','New with tags'],['excellent','Excellent'],['verygood','Very good'],['good','Good'],['fair','Fair']];
 
-/* Character limits: approximations; marketplaces change these. null = no meaningful limit. */
+/* Posting modes (Michael's decision 2026-10-21): bots only where the site allows it.
+   NOTE: the bot itself is not built yet. "Queue for bot" just marks the item; she can always post it herself. */
+const POST_MODES = {
+  api:      {label:'Bot posts (official API)',          short:'Bot \u00b7 API'},
+  crosslist:{label:'Bot posts (allowed crosslisting)',  short:'Bot \u00b7 crosslist'},
+  prefill:  {label:'She publishes (pre-filled)',        short:'You publish'},
+};
+/* Character limits: approximations; marketplaces change these. null = no meaningful limit.
+   on = shown by default (she can toggle sites in Settings). */
 const PLATFORMS = {
-  poshmark:{name:'Poshmark', short:'PM', color:'#7f0353', create:'https://poshmark.com/create-listing', titleMax:80, descMax:1500},
-  ebay:    {name:'eBay',     short:'eB', color:'#0064d2', create:'https://www.ebay.com/sl/sell',      titleMax:80, descMax:null},
-  depop:   {name:'Depop',    short:'Dp', color:'#ff2300', create:'https://www.depop.com/products/create/', titleMax:null, descMax:1000},
-  vinted:  {name:'Vinted',   short:'Vt', color:'#007782', create:'https://www.vinted.com/items/new',  titleMax:100, descMax:2000},
-  mercari: {name:'Mercari',  short:'Mc', color:'#5356ee', create:'https://www.mercari.com/sell/',     titleMax:80, descMax:1000},
+  poshmark:{name:'Poshmark', short:'PM', color:'#7f0353', create:'https://poshmark.com/create-listing', titleMax:80, descMax:1500, mode:'prefill', on:true},
+  ebay:    {name:'eBay',     short:'eB', color:'#0064d2', create:'https://www.ebay.com/sl/sell',      titleMax:80, descMax:null, mode:'api', on:true,
+            modeNote:'Bot will post through eBay\u2019s official Sell (Inventory) API once Michael sets up the eBay developer app.'},
+  depop:   {name:'Depop',    short:'Dp', color:'#ff2300', create:'https://www.depop.com/products/create/', titleMax:null, descMax:1000, mode:'crosslist', on:true,
+            modeNote:'Depop\u2019s Terms allow crosslisting tools if you remove the item promptly when it sells elsewhere. The bot will use Depop\u2019s official Selling API (access by request: business@depop.com); a bot clicking through the Depop website itself is not allowed.'},
+  vinted:  {name:'Vinted',   short:'Vt', color:'#007782', create:'https://www.vinted.com/items/new',  titleMax:100, descMax:2000, mode:'prefill', on:true},
+  mercari: {name:'Mercari',  short:'Mc', color:'#5356ee', create:'https://www.mercari.com/sell/',     titleMax:80, descMax:1000, mode:'prefill', on:true},
+  etsy:    {name:'Etsy',     short:'Et', color:'#f1641e', create:'https://www.etsy.com/your/shops/me/listing-editor/create', titleMax:140, descMax:null, tagsMax:13, tagLen:20, mode:'api', on:true,
+            modeNote:'Bot will post through Etsy\u2019s official Open API v3 once Michael registers an Etsy app for her shop. Etsy \u201cvintage\u201d = at least 20 years old.'},
+  facebook:{name:'FB Marketplace', short:'FB', color:'#1877f2', create:'https://www.facebook.com/marketplace/create/item', titleMax:100, descMax:null, mode:'prefill', on:false,
+            modeNote:'No listing API for individuals and Meta bans automated access, so you publish it. Great for local pickup (no fee).'},
+  grailed: {name:'Grailed',  short:'Gr', color:'#111111', create:'https://www.grailed.com/sell', titleMax:null, descMax:null, mode:'prefill', on:false,
+            modeNote:'Mostly menswear/streetwear. Grailed bans third-party tools without written consent, so you publish it.'},
 };
 const PKEYS = Object.keys(PLATFORMS);
+const FEES_CHECKED = '2026-10-21';
+function activeKeys(){ let on=null; try{ on=JSON.parse(localStorage.getItem('ctc-sites')||'null'); }catch(e){}
+  return PKEYS.filter(k=> on && on[k]!=null ? on[k] : PLATFORMS[k].on); }
+function setSiteOn(k,v){ let on={}; try{ on=JSON.parse(localStorage.getItem('ctc-sites')||'{}')||{}; }catch(e){} on[k]=!!v; localStorage.setItem('ctc-sites',JSON.stringify(on)); }
+// sites to show for an item: the ones she uses + any where this item already has a status
+const shownKeys = it => PKEYS.filter(k=>activeKeys().includes(k) || (it&&it.status&&it.status[k]&&it.status[k].state!=='none'));   // date fee defaults below were last checked against each site's fee page
 
 /* Seller fee defaults (US, approximate, 2026). pct = % of sale, fixed = $ per order.
    Poshmark is special: flat $2.95 under $15, 20% at $15+ (used unless you override pct/fixed). */
@@ -236,9 +266,15 @@ const FEE_DEFAULTS = {
   mercari: {pct:10,   fixed:0,    note:'10% selling fee'},
   depop:   {pct:3.3,  fixed:0.45, note:'0% seller fee (US); ~3.3% + $0.45 processing'},
   vinted:  {pct:0,    fixed:0,    note:'0% seller fee (buyer pays)'},
+  etsy:    {pct:9.5,  fixed:0.45, note:'6.5% transaction + 3% + $0.25 processing + $0.20 listing (US)', checked:'2026-10-21'},
+  facebook:{pct:10,   fixed:0,    note:'Local pickup $0; shipped 10% (min $0.80) incl. shipping+tax', checked:'2026-10-21'},
+  grailed: {pct:null, fixed:null, note:'6% under $120 (min $1.99), 9% at $120+, plus 3.49% + $0.49 processing', checked:'2026-10-21'},
 };
 /* "Search sold comps" URLs. {q} = URL-encoded search terms. */
 const COMP_SEARCH = {
+  etsy:    'https://www.etsy.com/search?q={q}',
+  facebook:'https://www.facebook.com/marketplace/search/?query={q}',
+  grailed: 'https://www.grailed.com/sold?query={q}',
   ebay:    'https://www.ebay.com/sch/i.html?_nkw={q}&LH_Sold=1&LH_Complete=1',
   poshmark:'https://poshmark.com/search?query={q}&availability=sold_out',
   mercari: 'https://www.mercari.com/search/?keyword={q}&status=sold_out',
@@ -402,28 +438,62 @@ function generate(p,it){
   } else if(p==='vinted'){
     title=buildTitle(it,P.titleMax);
     desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
+  } else if(p==='etsy'){
+    title=buildTitle(it,P.titleMax);
+    desc=[`${lead}${it.color?' in '+it.color.toLowerCase():''}${kws.length?' \u2014 '+kws.slice(0,5).join(', '):''}.`, '',
+      ...basics, sizeLine, ...(meas.length?['','Measurements (laid flat):',...meas]:[]),
+      '', `Condition: ${condSentence(it)}`, 'As a true vintage piece it may show gentle signs of age; please see all photos.',
+      '', 'Ships within 1\u20132 business days, carefully packed.', `SKU ${it.sku||''}`].join('\n');
+  } else if(p==='facebook'){
+    title=buildTitle(it,P.titleMax);
+    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, '', 'Local pickup or shipping available.'].filter(x=>x!=null).join('\n');
+  } else if(p==='grailed'){
+    title=buildTitle(it,60);
+    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
   } else {
     title=buildTitle(it,P.titleMax);
     desc=[`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine, ...measLines(it,'- '),
       '', `Condition: ${condSentence(it)}`, '', 'Ships fast. Offers welcome!', `SKU ${it.sku||''}`].join('\n');
   }
   desc=desc.replace(/\n{3,}/g,'\n\n').trim();
-  return {title, desc:clip(desc,P.descMax)};
+  const out={title, desc:clip(desc,P.descMax)};
+  if(P.tagsMax) out.tags=etsyTags(it).join(', ');
+  return out;
 }
-const listingFor = (p,it) => { const g=generate(p,it), c=(it.custom&&it.custom[p])||{}; return {title:c.title??g.title, desc:c.desc??g.desc}; };
+/* Etsy tags: up to 13, each max 20 characters, letters/numbers/spaces only */
+function etsyTags(it){
+  const era=it.era&&it.era!=='Unknown'?it.era:'';
+  const ty=(it.type||'').replace('t-shirt','tee'), cand=['vintage '+ty, era&&(era==='Y2K'?'y2k':era+' vintage'), era&&(era+' '+ty), it.brand&&('vintage '+it.brand), it.brand,
+    ...kwList(it), it.color&&(it.color+' '+ty), it.material&&(it.material+' '+ty), it.size&&('size '+it.size), 'vintage clothing', 'retro '+ty, 'vintage fashion', 'thrifted '+ty, era&&(era+' fashion')];
+  const out=[];
+  for(let t of cand){ if(!t) continue; t=String(t).toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim(); if(!t) continue;
+    if(t.length>20) t=t.slice(0,20).replace(/\s+\S*$/,'').trim()||t.slice(0,20); if(t&&!out.includes(t)) out.push(t); if(out.length===13) break; }
+  return out;
+}
+function etsyVintageWarning(it){
+  if(it.era==='2010s') return 'Etsy only allows items at least 20 years old as vintage (made 2006 or earlier). A 2010s piece can\u2019t be listed as vintage on Etsy.';
+  if(!it.era||it.era==='Unknown') return 'Etsy vintage must be at least 20 years old (made 2006 or earlier) \u2014 double-check before listing.';
+  return '';
+}
+const listingFor = (p,it) => { const g=generate(p,it), c=(it.custom&&it.custom[p])||{}; return {title:c.title??g.title, desc:c.desc??g.desc, tags:c.tags??g.tags}; };
+const fullListing = (L) => `${L.title}\n\n${L.desc}${L.tags?`\n\nTags: ${L.tags}`:''}`;
 
 /* ===================== value comparison ===================== */
 function feeFor(p,price,c={}){
   if(!price) return 0;
   const d=FEE_DEFAULTS[p];
-  if(p==='poshmark' && c.feePct==null && c.feeFixed==null) return price<15 ? 2.95 : price*0.20;
+  if(c.feePct==null && c.feeFixed==null){
+    if(p==='poshmark') return price<15 ? 2.95 : price*0.20;
+    if(p==='grailed') return Math.max(1.99, price*(price<120?0.06:0.09)) + price*0.0349 + 0.49;
+    if(p==='facebook') return Math.max(0.80, price*0.10);   // shipped sale; local pickup is free
+  }
   const pct=c.feePct!=null?c.feePct:(d.pct||0), fx=c.feeFixed!=null?c.feeFixed:(d.fixed||0);
   return Math.max(0, price*pct/100 + fx);
 }
 const netAt = (p,price,c) => price ? Math.round((price - feeFor(p,price,c))*100)/100 : null;
 function compAnalysis(it){
   const comps=it.comps||{}, ask=it.price||null;
-  const rows=PKEYS.map(p=>{
+  const rows=shownKeys(it).map(p=>{
     const c=comps[p]||{}, med=c.median!=null?c.median:null;
     return {p,c,netAsk:netAt(p,ask,c),netMed:med!=null?netAt(p,med,c):null};
   });
@@ -548,7 +618,7 @@ function renderList(){
       <div class="thumb">${it.thumb?`<img src="${it.thumb}" alt="" loading="lazy">`:'<span>no photo</span>'}</div>
       <div class="ci"><div class="sku">${esc(it.sku)}</div><div class="t">${esc(buildTitle(it,80)||'Untitled')}</div>
       <div class="price">${money(x.sold?soldPrice(it):it.price)}</div>
-      <div class="pchips">${PKEYS.map(k=>{ const s=it.status?.[k]?.state||'none'; const cls= s==='listed'&&x.sold?'delist':s; return `<span class="pc ${cls}" title="${PLATFORMS[k].name}: ${s}">${PLATFORMS[k].short}${s==='sold'?' \u2713':''}</span>`; }).join('')}</div></div></a>`;
+      <div class="pchips">${shownKeys(it).map(k=>{ const s=it.status?.[k]?.state||'none'; const cls= s==='listed'&&x.sold?'delist':s; return `<span class="pc ${cls}" title="${PLATFORMS[k].name}: ${s}">${PLATFORMS[k].short}${s==='sold'?' \u2713':''}</span>`; }).join('')}</div></div></a>`;
   }).join('');
 }
 
@@ -662,54 +732,112 @@ async function renderDetail(id){
     <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
 
   <h2 class="sec">Listings</h2>
-  <p class="sub">Copy \u2192 paste into the site/app \u2192 mark <b>Listed</b>. This app can't post for you (no public listing APIs); it just makes posting fast.</p>
-  <div id="pcards">${PKEYS.map(p=>pcardHTML(p,it)).join('')}</div>
+  <p class="sub">\u201cYou publish\u201d sites: tap <b>Post to\u2026</b> \u2014 it copies the listing, sends the photos and opens the site; you just check and tap publish. \u201cBot\u201d sites will be posted for you once the bot is connected (not yet) \u2014 you can always post them yourself. Choose your sites in Settings.</p>
+  <div id="pcards">${shownKeys(it).map(p=>pcardHTML(p,it)).join('')}</div>
 
   <h2 class="sec">Value comparison</h2>
   <p class="sub">Your sold comps per site + estimated payout after seller fees.</p>
   <div class="comps" id="comps"></div>
   <button class="btn danger block" id="delBtn" style="margin:10px 0 20px">Delete item</button>`;
-  PKEYS.forEach(p=>bindPcard(p));
+  shownKeys(it).forEach(p=>bindPcard(p));
   updateStatusUI();
   renderComps();
   if(urls.length){ $('#shareBtn').onclick=sharePhotos; $('#dlBtn').onclick=downloadPhotos; }
   $('#delBtn').onclick=async()=>{ if(!confirm(`Delete ${it.sku} and its photos? This cannot be undone.`)) return; await deleteItem(it.id); await refresh(); toast('Deleted'); location.hash='#/'; };
 }
 function pcardHTML(p,it){
-  const P=PLATFORMS[p], L=listingFor(p,it), s=it.status[p]||{state:'none',url:''};
+  const P=PLATFORMS[p], L=listingFor(p,it), s=it.status[p]||{state:'none',url:''}, M=POST_MODES[P.mode], bot=P.mode!=='prefill';
+  const warn=p==='etsy'?etsyVintageWarning(it):'';
   return `<section class="pcard" data-p="${p}" style="--pc:${P.color}">
-    <div class="hd"><h3>${P.name}</h3>
+    <div class="hd"><div><h3>${P.name}</h3><span class="mode ${bot?'bot':'you'}" title="${esc(M.label)}">${bot?'\u2699 ':'\u261d '}${esc(M.label)}</span></div>
       <div class="seg" role="group" aria-label="${P.name} status">${[['none','Not listed'],['listed','Listed'],['sold','Sold']].map(([k,l])=>`<button type="button" data-s="${k}">${l}</button>`).join('')}</div></div>
+    ${P.modeNote?`<p class="hint" style="margin:6px 0 0">${esc(P.modeNote)}</p>`:''}
+    ${warn?`<div class="gs err" style="margin-top:8px">\u26a0 ${esc(warn)}</div>`:''}
+    ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
+         :`<button class="btn primary block post" type="button" style="margin-top:10px">\u261d Post to ${P.name}</button>`}
+    <div class="checklist" hidden></div>
+    <details class="ed"><summary>\u270e Edit text \u00b7 copy pieces \u00b7 listing link</summary>
     <div class="lbl"><span>${p==='depop'?'Headline (Depop has no title field)':'Title'}</span><span class="cnt" data-c="t"></span></div>
     <textarea class="inp ti" rows="2">${esc(L.title)}</textarea>
     <div class="lbl"><span>Description</span><span class="cnt" data-c="d"></span></div>
     <textarea class="inp de" rows="9">${esc(L.desc)}</textarea>
+    ${P.tagsMax?`<div class="lbl"><span>Tags (comma separated)</span><span class="cnt" data-c="g"></span></div><textarea class="inp tg" rows="3">${esc(L.tags||'')}</textarea>`:''}
     <div class="pbtns">
       <button class="btn sm" data-copy="t">Copy title</button><button class="btn sm" data-copy="d">Copy description</button>
+      ${P.tagsMax?'<button class="btn sm" data-copy="g">Copy tags</button>':''}
       <button class="btn sm rust" data-copy="a">Copy all</button><a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site \u2197</a>
     </div>
     <div class="lbl"><span>Listing URL (optional)</span><a class="lnk" target="_blank" rel="noopener" style="display:none">open listing \u2197</a></div>
     <input class="inp url" type="url" inputmode="url" placeholder="Paste the live listing link" value="${esc(s.url||'')}">
     <button type="button" class="btn sm ghost regen" style="margin-top:8px">\u21ba Regenerate text from details</button>
+    </details>
   </section>`;
 }
+const CHECK_EXTRA = {
+  poshmark:['Pick category, size and brand from Poshmark\u2019s menus.','Set original price (optional) and listing price.'],
+  mercari: ['Pick category, brand, condition and size from the menus.','Choose shipping (prepaid label is easiest).'],
+  vinted:  ['Pick category, brand, size and condition from the menus.','Pick a parcel size.'],
+  facebook:['Pick category and condition; turn on shipping if you want it.','Location shows your area \u2014 meet buyers in a public place.'],
+  grailed: ['Pick department, category, designer and size.','Grailed asks for at least 3 photos.'],
+  ebay:    ['Use the suggested category; fill the Item specifics (they\u2019re in the description).','Choose shipping and returns.'],
+  etsy:    ['Choose \u201cvintage\u201d (at least 20 years old) and the decade; paste the tags.','Choose a shipping profile.'],
+  depop:   ['Pick category, brand, size, condition and colours.','Choose shipping.'],
+};
+function showChecklist(p,copied,shared){
+  const P=PLATFORMS[p], el=$(`.pcard[data-p="${p}"] .checklist`), it=DETAIL.item, L=cardListing(p);
+  const steps=[
+    copied?'<b>Listing copied.</b> In the title box paste and keep the first line; paste the rest into the description (or use the copy buttons below).':'Copy didn\u2019t work \u2014 use the copy buttons below.',
+    DETAIL.files.length?(shared?'Photos: in the share sheet you picked the app (or saved them).':'Photos were downloaded \u2014 add them from your Downloads/Photos.'):'This item has no photos yet.',
+    ...(CHECK_EXTRA[p]||[]), `Price: <b>${money(it.price)}</b>. Check it over, then tap publish.`, 'Come back here and tap <b>I published it</b>.'];
+  el.hidden=false;
+  el.innerHTML=`<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
+    <div class="pbtns"><button class="btn sm" data-cl="t">Copy title only</button><button class="btn sm" data-cl="d">Copy description only</button>
+    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a></div>
+    <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed</button>`;
+  el.querySelectorAll('[data-cl]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.cl;
+    if(k==='done'){ await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
+    const L2=cardListing(p); const ok=await copyText(k==='t'?L2.title:k==='d'?L2.desc:L2.tags||''); toast(ok?'Copied':'Copy blocked'); });
+}
+function cardListing(p){ const el=$(`.pcard[data-p="${p}"]`); return {title:$('.ti',el).value, desc:$('.de',el).value, tags:$('.tg',el)?$('.tg',el).value:''}; }
+// One tap: copy whole listing -> send photos (share sheet opens the marketplace app) or download them + open the site
+async function postFlow(p){
+  const P=PLATFORMS[p], txt=fullListing(cardListing(p));
+  const copied=copySync(txt);                 // synchronous copy while the page still has focus
+  const files=DETAIL.files, canShare=files.length&&navigator.canShare&&navigator.share&&navigator.canShare({files});
+  if(!canShare) window.open(P.create,'_blank','noopener');   // must run inside the tap
+  let ok=copied; if(!ok) ok=await copyText(txt);
+  showChecklist(p,ok,canShare);
+  if(canShare){ try{ await navigator.share({files, title:cardListing(p).title}); }catch(e){ if(e.name!=='AbortError') downloadPhotos(); } }
+  else if(files.length) downloadPhotos();
+}
+function copySync(text){
+  const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';
+  document.body.appendChild(ta); ta.focus(); ta.select(); try{ ta.setSelectionRange(0,text.length); }catch(e){}
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} ta.remove(); return ok;
+}
 function bindPcard(p){
-  const it=DETAIL.item, el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p], ti=$('.ti',el), de=$('.de',el);
+  const it=DETAIL.item, el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p], ti=$('.ti',el), de=$('.de',el), tg=$('.tg',el);
   const counts=()=>{
     const ct=$('[data-c=t]',el), cd=$('[data-c=d]',el), tags=(de.value.match(/#[\w]+/g)||[]).length;
     ct.textContent=ti.value.length+(P.titleMax?` / ${P.titleMax}`:' chars'); ct.classList.toggle('over',!!P.titleMax&&ti.value.length>P.titleMax);
     cd.textContent=de.value.length+(P.descMax?` / ${P.descMax}`:' chars')+(p==='depop'?` \u00b7 ${tags}/5 #`:'');
     cd.classList.toggle('over',(!!P.descMax&&de.value.length>P.descMax)||(p==='depop'&&tags>5));
+    if(tg){ const list=tg.value.split(',').map(x=>x.trim()).filter(Boolean), long=list.filter(x=>x.length>P.tagLen).length, cg=$('[data-c=g]',el);
+      cg.textContent=`${list.length} / ${P.tagsMax} tags${long?` \u00b7 ${long} over ${P.tagLen} chars`:''}`; cg.classList.toggle('over',list.length>P.tagsMax||long>0); }
   };
   counts();
-  let t; const saveCustom=()=>{ clearTimeout(t); t=setTimeout(async()=>{ const g=generate(p,it), c={}; if(ti.value!==g.title) c.title=ti.value; if(de.value!==g.desc) c.desc=de.value; it.custom[p]=c; await putItem(it); },400); };
-  ti.addEventListener('input',()=>{counts();saveCustom();}); de.addEventListener('input',()=>{counts();saveCustom();});
-  $('.regen',el).onclick=async()=>{ delete it.custom[p]; const g=generate(p,it); ti.value=g.title; de.value=g.desc; counts(); await putItem(it); toast('Regenerated'); };
+  let t; const saveCustom=()=>{ clearTimeout(t); t=setTimeout(async()=>{ const g=generate(p,it), c={}; if(ti.value!==g.title) c.title=ti.value; if(de.value!==g.desc) c.desc=de.value; if(tg&&tg.value!==g.tags) c.tags=tg.value; it.custom[p]=c; await putItem(it); },400); };
+  [ti,de,tg].filter(Boolean).forEach(x=>x.addEventListener('input',()=>{counts();saveCustom();}));
+  $('.regen',el).onclick=async()=>{ delete it.custom[p]; const g=generate(p,it); ti.value=g.title; de.value=g.desc; if(tg) tg.value=g.tags||''; counts(); await putItem(it); toast('Regenerated'); };
   el.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
-    const k=b.dataset.copy, txt=k==='t'?ti.value:k==='d'?de.value:`${ti.value}\n\n${de.value}`;
-    const ok=await copyText(txt); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'title + description'} for ${P.name}`:'Copy blocked \u2014 long-press the text to copy');
+    const k=b.dataset.copy, L=cardListing(p), txt=k==='t'?L.title:k==='d'?L.desc:k==='g'?L.tags:fullListing(L);
+    const ok=await copyText(txt); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':k==='g'?'tags':'title + description'} for ${P.name}`:'Copy blocked \u2014 long-press the text to copy');
   });
   el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setStatus(p,b.dataset.s));
+  $('.post',el).onclick=()=>postFlow(p);
+  const q=$('.qbot',el); if(q) q.onclick=async()=>{ const s=it.status[p]; s.botQueued=s.botQueued?null:Date.now(); it.updatedAt=Date.now(); await putItem(it);
+    q.textContent=s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'; q.classList.toggle('primary',!!s.botQueued);
+    toast(s.botQueued?`Queued for the ${P.name} bot (it isn\u2019t connected yet \u2014 nothing is posted until it is)`:'Removed from bot queue'); };
   const url=$('.url',el), lnk=$('.lnk',el);
   const showLnk=()=>{ const v=url.value.trim(); lnk.style.display=/^https?:\/\//.test(v)?'':'none'; lnk.href=v; };
   showLnk();
@@ -725,7 +853,7 @@ async function setStatus(p,s){
 }
 function updateStatusUI(){
   const it=DETAIL.item, x=st(it), dl=delistTargets(it), so=soldOn(it);
-  PKEYS.forEach(p=>{ const el=$(`.pcard[data-p="${p}"]`), s=it.status[p]?.state||'none';
+  shownKeys(it).forEach(p=>{ const el=$(`.pcard[data-p="${p}"]`), s=it.status[p]?.state||'none'; if(!el) return;
     el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
     el.classList.toggle('is-delist',x.sold&&s==='listed'); });
   $('#delist').innerHTML = dl.length ? `<div class="alert" role="alert" id="delistBanner"><span class="x">\u26a0</span><span>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
@@ -737,7 +865,9 @@ function updateStatusUI(){
 }
 function renderComps(){
   const it=DETAIL.item, A=compAnalysis(it), q=compQuery(it);
-  const feeTxt=(p,c)=>{ if(p==='poshmark'&&c.feePct==null&&c.feeFixed==null) return it.price!=null&&it.price<15?'$2.95':'20%'; const d=FEE_DEFAULTS[p]; const pct=c.feePct??d.pct??0, fx=c.feeFixed??d.fixed??0; return `${pct}%${fx?' + $'+Number(fx).toFixed(2):''}`; };
+  const feeTxt=(p,c)=>{ if(p==='poshmark'&&c.feePct==null&&c.feeFixed==null) return it.price!=null&&it.price<15?'$2.95':'20%';
+    if(p==='grailed'&&c.feePct==null&&c.feeFixed==null) return (it.price!=null&&it.price>=120?'9%':'6%')+' + 3.49% + $0.49';
+    if(p==='facebook'&&c.feePct==null&&c.feeFixed==null) return '10% shipped'; const d=FEE_DEFAULTS[p]; const pct=c.feePct??d.pct??0, fx=c.feeFixed??d.fixed??0; return `${pct}%${fx?' + $'+Number(fx).toFixed(2):''}`; };
   const bestRow=A.rows.find(r=>r.p===A.best);
   $('#comps').innerHTML=`
     ${A.best?`<div class="suggest" id="suggestBox"><span style="font-size:26px">\ud83d\udca1</span><div>
@@ -750,10 +880,10 @@ function renderComps(){
     <p class="hint" style="margin:8px 0 0">Net@ask = ${money(it.price)} asking minus fees. \u2605 best = highest net at that site's median sold price (or at asking if no comps). Fees are estimates; shipping not included.</p>
     <div class="lbl"><span>Search sold comps for</span></div>
     <input class="inp" id="compQ" value="${esc(q)}">
-    <div class="sbtns" id="compLinks">${PKEYS.map(p=>`<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${COMP_SEARCH[p].replace('{q}',encodeURIComponent(q))}">${PLATFORMS[p].name} sold \u2197</a>`).join('')}</div>
-    <p class="hint">Depop & Vinted links open a regular search (no sold-only URL filter) \u2014 use the site's \u201cSold\u201d toggle.</p>
+    <div class="sbtns" id="compLinks">${shownKeys(it).map(p=>`<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${COMP_SEARCH[p].replace('{q}',encodeURIComponent(q))}">${PLATFORMS[p].name} sold \u2197</a>`).join('')}</div>
+    <p class="hint">Depop, Vinted, Etsy & Facebook links open a regular search (no sold-only URL filter) \u2014 use the site's \u201cSold\u201d toggle where it has one. Fee defaults last checked ${FEES_CHECKED}.</p>
     <details class="ce"><summary>\u270e Enter comps by site</summary><div class="in">
-      ${PKEYS.map(p=>{ const c=it.comps[p]||{}; const f=(k,l,ph='')=>`<label>${l}<input data-cp="${p}" data-ck="${k}" inputmode="decimal" value="${esc(c[k]??'')}" placeholder="${ph}"></label>`;
+      ${shownKeys(it).map(p=>{ const c=it.comps[p]||{}; const f=(k,l,ph='')=>`<label>${l}<input data-cp="${p}" data-ck="${k}" inputmode="decimal" value="${esc(c[k]??'')}" placeholder="${ph}"></label>`;
         return `<div style="margin-top:10px"><b style="font-size:14px">${PLATFORMS[p].name}</b> <span class="hint">${esc(FEE_DEFAULTS[p].note)}</span>
         <div class="g6">${f('low','Low $')}${f('median','Median $')}${f('high','High $')}${f('count','# comps')}${f('feePct','Fee %',FEE_DEFAULTS[p].pct??'auto')}${f('feeFixed','Fee $',FEE_DEFAULTS[p].fixed??'auto')}</div></div>`; }).join('')}
       <button class="btn sm primary" id="saveComps" style="margin-top:10px">Save comps</button>
@@ -1056,8 +1186,12 @@ function bindGoogleSection(){
 /* ---------- Backup / export / import ---------- */
 function renderBackup(){
   $('#app').innerHTML=`
-  <header class="top"><h1>Backup</h1><p class="tag">your items live on this phone${Auth.signedIn()?' + your Google Drive':''}</p></header>
+  <header class="top"><h1>Backup &amp; settings</h1><p class="tag">your items live on this phone${Auth.signedIn()?' + your Google Drive':''}</p></header>
   ${googleSectionHTML()}
+  <fieldset class="sites"><legend>Your selling sites</legend>
+    ${PKEYS.map(k=>`<label><input type="checkbox" data-site="${k}" ${activeKeys().includes(k)?'checked':''}> <span><b>${PLATFORMS[k].name}</b> <span class="hint">\u00b7 ${POST_MODES[PLATFORMS[k].mode].short}</span></span></label>`).join('')}
+    <p class="note">Only checked sites show on items and in price comparisons. Bot sites aren\u2019t connected yet \u2014 you can post those yourself too.</p>
+  </fieldset>
   <fieldset><legend>Export</legend>
     <button class="btn primary block" id="expJson">\u2b07 Full backup (JSON, with photos)</button>
     <p class="note">Restores everything later or on a new phone. Save it to Files / iCloud / Google Drive.</p>
@@ -1070,10 +1204,12 @@ function renderBackup(){
     <p class="note">Format: <code>{"V-0001": {"ebay": {"low":20,"median":35,"high":60,"count":12}}}</code></p>
   </fieldset>
   <fieldset><legend>Storage</legend><p class="note" id="storeInfo">Checking\u2026</p>
-    <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>`;
+    <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>
+  <p class="foot"><a href="privacy.html">Privacy</a> \u00b7 <a href="terms.html">Terms</a> \u00b7 ${esc(APP_NAME)}</p>`;
   $('#expJson').onclick=exportJSON; $('#expCsv').onclick=exportCSV;
   $('#impJson').onchange=importJSON; $('#impComps').onchange=importComps;
   bindGoogleSection();
+  $$('[data-site]').forEach(c=>c.onchange=()=>{ setSiteOn(c.dataset.site,c.checked); toast(`${PLATFORMS[c.dataset.site].name} ${c.checked?'shown':'hidden'}`); });
   (async()=>{ let s=`${ITEMS.length} items.`; try{ if(navigator.storage?.estimate){ const e=await navigator.storage.estimate(); s+=` Using ~${(e.usage/1048576).toFixed(1)} MB.`; } if(navigator.storage?.persisted) s+=(await navigator.storage.persisted())?' Storage is persistent \u2713':' Storage not marked persistent (browser may clear it if space runs low).'; }catch(e){} $('#storeInfo').textContent=s; })();
 }
 const stamp=()=>new Date().toISOString().slice(0,10);

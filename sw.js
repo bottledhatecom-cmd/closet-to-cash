@@ -1,7 +1,7 @@
-/* Closet to Cash service worker: caches the app shell so it opens offline.
+/* Hanger Hustle service worker: caches the app shell so it opens offline.
    Item data/photos live in IndexedDB, not in this cache. Bump VERSION to force an update. */
-const VERSION = 'ctc-v2';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
+const VERSION = 'ctc-v3';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './privacy.html', './terms.html'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -16,8 +16,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || url.origin !== location.origin) return; // marketplace links etc. go straight to network
   if (req.mode === 'navigate') {
     // Network first for the page (so updates arrive), fall back to cached copy offline.
-    e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', cp)); return r; })
-      .catch(() => caches.match('./index.html', { ignoreSearch: true })));
+    const page = /\/(privacy|terms)\.html$/.test(url.pathname) ? req : './index.html';
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(page, cp)); } return r; })
+      .catch(() => caches.match(page, { ignoreSearch: true }).then(h => h || caches.match('./index.html'))));
     return;
   }
   e.respondWith(caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(r => {
