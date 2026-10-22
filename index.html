@@ -373,19 +373,53 @@ code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:var(--fs-sec
   .items.grid{grid-template-columns:repeat(3,1fr)}
   .stats{grid-template-columns:repeat(6,1fr)}
 }
+/* ===== HH-Icons (2026-10-22): one custom SVG icon set instead of emoji, so icons look the same on every phone.
+   Sprite = the hidden sprite svg at the top of <body>; JS helper IC(name,cls). Sizes are rem, so the fold breakpoint
+   (root 16px -> 20px at >=560px) scales every icon up by 25%. Phone: nav 36px, buttons 28px, + 34px. */
+.ic{width:var(--ic,1.75rem);height:var(--ic,1.75rem);flex:0 0 auto;display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;overflow:visible;pointer-events:none}
+.btn .ic{margin:-4px 0 -4px -4px}
+.btn .ic.tr{margin:-4px -4px -4px 0}
+.btn.primary,.btn.rust,.chip.on,.nav a.add .plus{--ic-ao:.8}
+@media (max-width:420px){.qcopy .ic{display:none}}   /* two half-width Copy buttons: keep the words on one line at phone width */
+.ic.t{--ic:1.35em;margin:-.2em .08em 0}
+.nav a .ic{--ic:2.25rem}
+.nav a{gap:1px}
+.nav a.on .ic{--ic-ao:.75}
+.nav a.add .plus{width:64px;height:64px;margin-top:-30px}
+.nav a.add .plus .ic{--ic:2.125rem;--ic-a:#fff}
+.stat .ic{--ic:1.75rem;display:block;margin:0 auto 2px;color:var(--rust)}
+.chip .ic{--ic:1.375rem;margin:-3px 4px 0 -3px}
+.top h1 .about-i{width:40px;height:40px;border:0;vertical-align:middle;margin-left:4px}
+.top h1 .about-i .ic{--ic:1.875rem}
+.top h1 .about-i::after{inset:-4px}
+.acct .ic{--ic:1.75rem;color:var(--deep)}
+.alert .x .ic{--ic:1.75rem}
+.mode .ic{--ic:1.25rem;margin:-2px 3px 0 -2px}
+.suggest .ic.big{--ic:2.25rem;color:var(--mustard)}
+.backlink .ic,.bar .btn .ic{--ic:1.5rem}
+.ph button .ic{--ic:1.5rem}
+.ph .cv .ic{color:#f3c55a}
+summary .ic{--ic:1.5rem;margin:-3px 4px 0 0}
+@media (min-width:560px){
+  .nav a.add .plus{width:78px;height:78px;margin-top:-36px}
+  .top h1 .about-i{width:48px;height:48px}
+}
 </style>
 </head>
 <body>
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><symbol id="i-hanger" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M12 9.6 19.2 14.6H4.8Z"/><path d="M9.8 5.4a2.2 2.2 0 1 1 3.2 2c-.6.3-1 .8-1 1.4v.3"/><path d="M12 9.1 21 15.2c.9.6.5 1.9-.6 1.9H3.6c-1.1 0-1.5-1.3-.6-1.9Z"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M21.21 10.13 L21.21 13.87 L18.69 14.07 L18.19 15.27 L19.83 17.19 L17.19 19.83 L15.27 18.19 L14.07 18.69 L13.87 21.21 L10.13 21.21 L9.93 18.69 L8.73 18.19 L6.81 19.83 L4.17 17.19 L5.81 15.27 L5.31 14.07 L2.79 13.87 L2.79 10.13 L5.31 9.93 L5.81 8.73 L4.17 6.81 L6.81 4.17 L8.73 5.81 L9.93 5.31 L10.13 2.79 L13.87 2.79 L14.07 5.31 L15.27 5.81 L17.19 4.17 L19.83 6.81 L18.19 8.73 L18.69 9.93Z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-width="2.6"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol><symbol id="i-clipboard" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="9" y="2.8" width="6" height="3.6" rx="1.2"/><path d="M9 4.6H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.6a2 2 0 0 0-2-2h-2"/><rect x="9" y="2.8" width="6" height="3.6" rx="1.2"/><path d="M8.6 11h6.8M8.6 14.5h6.8M8.6 18h4"/></symbol><symbol id="i-wand" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M16.5 2.8l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z"/><path d="M16.5 2.8l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z"/><path d="M3.5 20.5 13 11" stroke-width="2.4"/><path d="M8.5 3.5v3M7 5h3M19.5 13.5v3M18 15h3"/></symbol><symbol id="i-cloud" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M7.2 19h10.3a4.3 4.3 0 0 0 .6-8.6 6 6 0 0 0-11.5 1.5A3.6 3.6 0 0 0 7.2 19Z"/><path d="M7.2 19h10.3a4.3 4.3 0 0 0 .6-8.6 6 6 0 0 0-11.5 1.5A3.6 3.6 0 0 0 7.2 19Z"/><path d="M12 16.5V11.5M9.8 13.6 12 11.4l2.2 2.2"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="12" r="9.3"/><circle cx="12" cy="12" r="9.3"/><path d="M12 11v6" stroke-width="2.3"/><circle cx="12" cy="7.6" r="1.3" fill="currentColor" stroke="none"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.6" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="4.6" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4.6" cy="17.5" r="1.5" fill="currentColor" stroke="none"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="13.3" y="3.5" width="7.2" height="7.2" rx="2"/><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="3.5" y="13.3" width="7.2" height="7.2" rx="2"/><rect x="3.5" y="3.5" width="7.2" height="7.2" rx="2"/><rect x="13.3" y="3.5" width="7.2" height="7.2" rx="2"/><rect x="3.5" y="13.3" width="7.2" height="7.2" rx="2"/><rect x="13.3" y="13.3" width="7.2" height="7.2" rx="2"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M4 20l1-4.3L15.4 5.3a2.1 2.1 0 0 1 3 0l.3.3a2.1 2.1 0 0 1 0 3L8.3 19Z"/><path d="M4 20l1-4.3L15.4 5.3a2.1 2.1 0 0 1 3 0l.3.3a2.1 2.1 0 0 1 0 3L8.3 19Z"/><path d="M13.5 7.2l3.3 3.3"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M4 15.5h16V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><path d="M12 3.8V14.5M7.6 10.2 12 14.6l4.4-4.4"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M4 15.5h16V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><path d="M12 14.6V4M7.6 8.2 12 3.8l4.4 4.4"/></symbol><symbol id="i-share" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M6.5 10H17.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"/><path d="M8.3 10H6.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1.8"/><path d="M12 14.5V3.6M8.4 7.2 12 3.6l3.6 3.6"/></symbol><symbol id="i-external" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M4 8a2 2 0 0 1 2-2h4.5L18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5"/><path d="M14 4h6v6M20 4l-9 9"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="9.2"/><ellipse cx="12" cy="12" rx="3.9" ry="9.2"/><path d="M3 12h18"/></symbol><symbol id="i-camera" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="13.2" r="3.6"/><path d="M3.8 9a2 2 0 0 1 2-2h2.1l1.6-2.3h5l1.6 2.3h2.1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5.8a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13.2" r="3.6"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M3.8 17 8.8 12l4 4 2.6-2.6 4.8 4.8V18a1.8 1.8 0 0 1-1.8 1.8H5.6A1.8 1.8 0 0 1 3.8 18Z"/><rect x="3.8" y="4.2" width="16.4" height="15.6" rx="2.4"/><path d="M3.8 17 8.8 12l4 4 2.6-2.6 4.8 4.8"/><circle cx="15.6" cy="8.8" r="1.6"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="10.5" cy="10.5" r="6.3"/><circle cx="10.5" cy="10.5" r="6.3"/><path d="M15.2 15.2 20.3 20.3" stroke-width="2.6"/></symbol><symbol id="i-bulb" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M12 3a6.2 6.2 0 0 0-3.7 11.2c.7.5 1.1 1.2 1.1 2V16.5h5.2v-.3c0-.8.4-1.5 1.1-2A6.2 6.2 0 0 0 12 3Z"/><path d="M12 3a6.2 6.2 0 0 0-3.7 11.2c.7.5 1.1 1.2 1.1 2V16.5h5.2v-.3c0-.8.4-1.5 1.1-2A6.2 6.2 0 0 0 12 3Z"/><path d="M9.6 19.2h4.8M10.6 21.5h2.8"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="8.3" r="3.9"/><circle cx="12" cy="8.3" r="3.9"/><path d="M4.5 20.3a7.5 7.5 0 0 1 15 0"/></symbol><symbol id="i-phone" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="6.8" y="2.6" width="10.4" height="18.8" rx="2.6"/><rect x="6.8" y="2.6" width="10.4" height="18.8" rx="2.6"/><path d="M10.8 18.2h2.4"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="12" r="9.3"/><circle cx="12" cy="12" r="9.3"/><path d="M9.4 9.4a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.2-2.6 4"/><circle cx="12" cy="17.4" r="1.3" fill="currentColor" stroke="none"/></symbol><symbol id="i-warn" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M10.3 4.4a2 2 0 0 1 3.4 0l7.4 12.9a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3Z"/><path d="M10.3 4.4a2 2 0 0 1 3.4 0l7.4 12.9a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3Z"/><path d="M12 9.3v4.6" stroke-width="2.3"/><circle cx="12" cy="17" r="1.25" fill="currentColor" stroke="none"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M4.8 12.6 9.6 17.4 19.4 7.2" stroke-width="2.5"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="9.2"/><path d="M12 7v5.2l3.4 2"/></symbol><symbol id="i-bot" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="4.5" y="8" width="15" height="11.5" rx="3.2"/><rect x="4.5" y="8" width="15" height="11.5" rx="3.2"/><path d="M12 8V5.4M2.3 12.5v3M21.7 12.5v3M9.8 16.4h4.4"/><circle cx="12" cy="4.2" r="1.3"/><circle cx="9.2" cy="12.6" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.6" r="1.25" fill="currentColor" stroke="none"/></symbol><symbol id="i-send" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M20.5 3.5 3.6 10.2l6.8 3.4 3.4 6.8Z"/><path d="M20.5 3.5 3.6 10.2l6.8 3.4 3.4 6.8Z"/><path d="M20.5 3.5 10.4 13.6"/></symbol><symbol id="i-sparkle" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M10 3.5l1.7 4.6 4.6 1.7-4.6 1.7L10 16.1l-1.7-4.6-4.6-1.7 4.6-1.7Z"/><path d="M10 3.5l1.7 4.6 4.6 1.7-4.6 1.7L10 16.1l-1.7-4.6-4.6-1.7 4.6-1.7Z"/><path d="M18 14.5v5M15.5 17h5"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="4.8" y="10.5" width="14.4" height="10" rx="2.5"/><rect x="4.8" y="10.5" width="14.4" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.4v2.3"/></symbol><symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.4l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.7l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z" fill="currentColor"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" stroke-width="2.4"/></symbol><symbol id="i-back" viewBox="0 0 24 24"><path d="M14.8 5.5 8.3 12l6.5 6.5" stroke-width="2.4"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="M9.2 5.5 15.7 12l-6.5 6.5" stroke-width="2.4"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.3-5.4"/><path d="M19.6 4.2v4.6H15"/></symbol><symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14.5M15 4.5 18.5 8 15 11.5M20 16H5.5M9 12.5 5.5 16 9 19.5"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></symbol><symbol id="i-tag" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M3.5 12.3V5a1.5 1.5 0 0 1 1.5-1.5h7.3l8.3 8.3a1.6 1.6 0 0 1 0 2.2l-6.8 6.8a1.6 1.6 0 0 1-2.2 0Z"/><path d="M3.5 12.3V5a1.5 1.5 0 0 1 1.5-1.5h7.3l8.3 8.3a1.6 1.6 0 0 1 0 2.2l-6.8 6.8a1.6 1.6 0 0 1-2.2 0Z"/><circle cx="8" cy="8" r="1.6"/></symbol><symbol id="i-store" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M10 20.5v-5.5h4v5.5Z"/><path d="M5 10.5v10h14v-10M3.5 8.2 5.4 3.5h13.2l1.9 4.7a2.3 2.3 0 0 1-4.3 1.2 2.4 2.4 0 0 1-4.2 0 2.4 2.4 0 0 1-4.2 0 2.3 2.3 0 0 1-4.3-1.2ZM10 20.5v-5.5h4v5.5"/></symbol><symbol id="i-bag" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M5.2 8h13.6l-1 12.5H6.2Z"/><path d="M5.2 8h13.6l-1 12.5H6.2Z"/><path d="M9 8V6.6a3 3 0 0 1 6 0V8M9.3 14.2l2 2 3.6-3.6"/></symbol><symbol id="i-cash" viewBox="0 0 24 24"><rect style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" x="2.5" y="6" width="19" height="12" rx="2.2"/><rect x="2.5" y="6" width="19" height="12" rx="2.2"/><circle cx="12" cy="12" r="2.7"/><path d="M6 12h.01M18 12h.01" stroke-width="2.6"/></symbol><symbol id="i-trend" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M3.5 18.5 9.5 12.5l4 4 7-7.5V20H3.5Z" opacity=".55"/><path d="M3.5 17.5 9.5 11.5l4 4 7-7.5M15.5 8h5v5"/></symbol><symbol id="i-box" viewBox="0 0 24 24"><path style="fill:var(--ic-a,#c48f2c);fill-opacity:var(--ic-ao,.45);stroke:none" d="M4.5 9h15v9.8a1.7 1.7 0 0 1-1.7 1.7H6.2a1.7 1.7 0 0 1-1.7-1.7Z"/><path d="M4.5 9v9.8a1.7 1.7 0 0 0 1.7 1.7h11.6a1.7 1.7 0 0 0 1.7-1.7V9"/><rect x="3" y="4.5" width="18" height="4.5" rx="1.3"/><path d="M10 12.8h4"/></symbol></svg>
 <div class="wrap" id="app"></div>
 <nav class="nav" id="nav">
-  <a href="#/" data-nav="inv"><span class="i">&#129530;</span>Inventory</a>
-  <a href="#/add" class="add" data-nav="add" aria-label="Add item"><span class="plus">+</span></a>
-  <a href="#/backup" data-nav="backup"><span class="i">&#9881;&#65039;</span>Settings</a>
+  <a href="#/" data-nav="inv"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-hanger"/></svg>Inventory</a>
+  <a href="#/add" class="add" data-nav="add" aria-label="Add item"><span class="plus"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></span></a>
+  <a href="#/backup" data-nav="backup"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg>Settings</a>
 </nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
 /* ===================== CONFIG (edit freely) ===================== */
+const IC=(n,c)=>`<svg class="ic${c?' '+c:''}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;   // HH-Icons: SVG icon from the sprite (names: see <svg class="sprite">)
 const APP_NAME = 'Hanger Hustle';           // <- change the app name here
 const APP_TAGLINE = 'vintage inventory \u00b7 cross-listing helper';
 const SKU_PREFIX = 'V-';
@@ -583,9 +617,9 @@ async function setSiteStatus(it,p,s){
 const safeUrl = u => /^https?:\/\//i.test(String(u||'').trim()) ? String(u).trim() : '';
 // "Sold! Delist it here": reminder only; the app never removes listings itself.
 function delistHTML(it,id){ const dl=delistTargets(it), so=soldOn(it); if(!dl.length) return '';
-  return `<div class="alert" role="alert" id="${id}"><span class="x">\u26a0</span><span><b class="dh">Sold! Delist it here</b>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
+  return `<div class="alert" role="alert" id="${id}"><span class="x">${IC('warn')}</span><span><b class="dh">Sold! Delist it here</b>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
     <small>Reminder only: the app doesn\u2019t remove anything for you. Delist each one now so it can\u2019t sell twice, then tap Removed.</small>
-    <span class="dlist">${dl.map(k=>{ const u=safeUrl(it.status[k].url); return `<span class="drow"><b>${esc(PLATFORMS[k].name)}</b>${u?`<a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Open listing \u2197</a>`:''}<button class="btn sm" data-rmv="${k}">\u2713 Removed from ${esc(PLATFORMS[k].name)}</button></span>`; }).join('')}</span></span></div>`; }
+    <span class="dlist">${dl.map(k=>{ const u=safeUrl(it.status[k].url); return `<span class="drow"><b>${esc(PLATFORMS[k].name)}</b>${u?`<a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Open listing ${IC('external','tr')}</a>`:''}<button class="btn sm" data-rmv="${k}">${IC('check')} Removed from ${esc(PLATFORMS[k].name)}</button></span>`; }).join('')}</span></span></div>`; }
 
 /* ===================== listing generator (pure templates, no AI) ===================== */
 function eraWord(it){ if(!it.era||it.era==='Unknown') return 'Vintage'; if(it.era==='Y2K') return 'Y2K'; if(it.era==='2010s') return '2010s'; return 'Vintage '+it.era; }
@@ -942,18 +976,18 @@ function cfRowsHTML(p){
    +rows.map((r,i)=>{ const extra=r.f==='title'&&P.titleMax?` \u00b7 ${r.value.length}/${P.titleMax}`:r.f==='description'&&r.value?` \u00b7 ${r.value.length} chars`:'';
     return `<div class="cfrow${done.includes(r.f)?' done':''}" data-f="${r.f}"><div><span class="k">${i+1}. ${esc(r.label)}${extra} <span class="ok">\u2713 Copied</span></span>
       <span class="v${r.value?'':' none'}">${r.value?esc(r.value):'not set \u2014 add it with Edit'}</span></div>
-      <button class="btn sm" type="button" data-cf="${r.f}" ${r.value?'':'disabled'} aria-label="Copy ${esc(r.label)} for ${esc(P.name)}">Copy</button></div>`; }).join('')
+      <button class="btn sm" type="button" data-cf="${r.f}" ${r.value?'':'disabled'} aria-label="Copy ${esc(r.label)} for ${esc(P.name)}">${IC('copy')} Copy</button></div>`; }).join('')
    +`<button class="btn sm ghost" type="button" data-cfreset style="margin-top:8px">Clear copied marks</button>`;
 }
 function cfProg(p){ const it=DETAIL.item, done=cfGet(it.id,p), rows=cfFields(p,it,cfCardRaw(p)).filter(r=>r.value); const n=rows.filter(r=>done.includes(r.f)).length;
   return n?`${n} of ${rows.length} copied`:`${rows.length} fields`; }
-function cfHTML(p){ return `<details class="cf" data-p="${p}"><summary><span>\ud83d\udccb Copy fields one by one</span><span class="cfprog" aria-live="polite"></span></summary><div class="cfbody"></div></details>`; }
+function cfHTML(p){ return `<details class="cf" data-p="${p}"><summary><span>${IC('clipboard')} Copy fields one by one</span><span class="cfprog" aria-live="polite"></span></summary><div class="cfbody"></div></details>`; }
 function cfPaint(p){ const d=$(`.pcard[data-p="${p}"] details.cf`); if(!d||!DETAIL||!DETAIL.item) return; $('.cfbody',d).innerHTML=cfRowsHTML(p); $('.cfprog',d).textContent=cfProg(p); }
 async function cfCopy(p,f,btn){
   const it=DETAIL.item, P=PLATFORMS[p], r=cfFields(p,it,cfCardRaw(p)).find(x=>x.f===f); if(!r||!r.value) return;
   const how=await copyOut(r.value); const row=btn.closest('.cfrow');
-  if(how){ cfMark(p,f); const b=$(`.pcard[data-p="${p}"] [data-cf="${f}"]`); if(b){ b.textContent='\u2713 Copied!'; b.classList.add('just'); try{ b.focus({preventScroll:true}); }catch(e){}
-      setTimeout(()=>{ if(b.isConnected){ b.textContent='Copy'; b.classList.remove('just'); } },1800); }
+  if(how){ cfMark(p,f); const b=$(`.pcard[data-p="${p}"] [data-cf="${f}"]`); if(b){ b.innerHTML=IC('check')+' Copied!'; b.classList.add('just'); try{ b.focus({preventScroll:true}); }catch(e){}
+      setTimeout(()=>{ if(b.isConnected){ b.innerHTML=IC('copy')+' Copy'; b.classList.remove('just'); } },1800); }
     toast(`Copied! ${r.label} for ${P.name} \u2014 now paste it there`);
   } else {
     let m=$('.man',row); if(!m){ m=document.createElement('textarea'); m.className='man'; m.readOnly=true; m.rows=f==='description'?5:2; m.setAttribute('aria-label',`${r.label} text to copy`); row.appendChild(m); }
@@ -979,27 +1013,27 @@ const caSleep=ms=>new Promise(r=>setTimeout(r,ms));
 function caPlan(p,it,L){ const rows=cfFields(p,it,L);
   return {clips:rows.filter(r=>CA_TYPED.includes(r.f)&&r.value), pick:rows.filter(r=>!CA_TYPED.includes(r.f)&&r.value)}; }
 function caHTML(p){ if(!CA_SITES.includes(p)) return ''; const P=PLATFORMS[p];
-  return `<button class="btn block cabtn" type="button" data-copyall aria-controls="ca-${p}">\ud83d\udccb Copy all for ${esc(P.name)}</button>
+  return `<button class="btn block cabtn" type="button" data-copyall aria-controls="ca-${p}">${IC('clipboard')} Copy all for ${esc(P.name)}</button>
     <div class="caguide" id="ca-${p}" hidden aria-live="polite"></div>`; }
 function caPaint(p,plan,done,state,msg){
   const P=PLATFORMS[p], g=$(`#ca-${p}`); if(!g) return; const n=plan.clips.length, nm=esc(P.name), files=(DETAIL&&DETAIL.files)||[];
-  const head= state==='busy' ? `<p class="castat">\u23f3 ${esc(msg)}</p><p>Please stay on this screen until it says <b>Done</b>.</p>`
-    : state==='done' ? `<p class="castat">\u2713 Done: ${n} ${n===1?'box':'boxes'} copied for ${nm}</p>
-        <p class="cahead">Now open ${nm}, tap a box, tap your keyboard\u2019s clipboard icon \ud83d\udccb, then tap the matching clip.</p>`
+  const head= state==='busy' ? `<p class="castat">${IC('clock','t')} ${esc(msg)}</p><p>Please stay on this screen until it says <b>Done</b>.</p>`
+    : state==='done' ? `<p class="castat">${IC('check','t')} Done: ${n} ${n===1?'box':'boxes'} copied for ${nm}</p>
+        <p class="cahead">Now open ${nm}, tap a box, tap your keyboard\u2019s clipboard icon ${IC('clipboard','t')}, then tap the matching clip.</p>`
     : state==='away' ? `<p class="castat warn">Stopped after ${done.length} of ${n}: you left this screen while it was copying. Tap <b>Copy all again</b> and wait for <b>Done</b>.</p>`
     : `<p class="castat warn">Your phone stopped the copying after ${done.length} of ${n}. Use the <b>Copy</b> buttons under <b>Copy fields one by one</b> below.</p>`;
   const clips=`<ol class="caclips">${plan.clips.map(r=>`<li class="${done.includes(r.f)?'done':''}" data-caf="${r.f}"><b>${esc(r.label)}${done.includes(r.f)?' \u2713':''}</b><span class="v">${esc(r.value)}</span></li>`).join('')}</ol>`;
   const steps= state==='busy' ? '' : `<ol class="casteps">
       <li>Tap <b>Open ${nm}</b> and start a new listing.</li>
       <li>Tap a box, like <b>Title</b>.</li>
-      <li>On your keyboard, tap the <b>clipboard icon</b> \ud83d\udccb (Samsung Keyboard and Gboard: in the row above the letters; if you don\u2019t see it, tap the <b>\u2026</b> or <b>\u2630</b> button there).</li>
+      <li>On your keyboard, tap the <b>clipboard icon</b> ${IC('clipboard','t')} (Samsung Keyboard and Gboard: in the row above the letters; if you don\u2019t see it, tap the <b>\u2026</b> or <b>${IC('menu','t')}</b> button there).</li>
       <li>Tap the clip that matches the box. Your newest clip is shown first.</li>
       <li>Do the same for each box in this list.</li></ol>`;
   const pick= state==='busy'||!plan.pick.length ? '' : `<p><b>Pick these from ${nm}\u2019s menus:</b></p><ul class="capick">${plan.pick.map(r=>`<li>${esc(r.label)}: <b>${esc(r.value)}</b></li>`).join('')}</ul>`;
   const photos= state==='busy'||!files.length ? '' : `<p>Photos: tap <b>Save photos</b>, then add them in ${nm} from your Gallery (Download folder).</p>`;
-  const top= state==='busy' ? '' : `<div class="pbtns"><a class="btn primary" href="${P.create}" target="_blank" rel="noopener" data-caopen>Open ${nm} \u2197</a>
-      ${files.length?'<button class="btn" type="button" data-casave>\u2b07 Save photos</button>':''}</div>`;
-  const again= state==='busy' ? '' : `<div class="pbtns"><button class="btn ghost" type="button" data-caagain>\ud83d\udccb Copy all again</button></div>
+  const top= state==='busy' ? '' : `<div class="pbtns"><a class="btn primary" href="${P.create}" target="_blank" rel="noopener" data-caopen>Open ${nm} ${IC('external','tr')}</a>
+      ${files.length?'<button class="btn" type="button" data-casave>'+IC('download')+' Save photos</button>':''}</div>`;
+  const again= state==='busy' ? '' : `<div class="pbtns"><button class="btn ghost" type="button" data-caagain>${IC('clipboard')} Copy all again</button></div>
       <p class="canote">Clips usually stay on the keyboard for about an hour. No clipboard icon? Use <b>Copy fields one by one</b> below.</p>`;
   const fxn=CA_NOTE[p]?`<p class="canote fx">${esc(CA_NOTE[p])}</p>`:'';
   g.hidden=false; g.innerHTML=fxn+head+top+clips+steps+pick+photos+again;
@@ -1043,7 +1077,7 @@ window.addEventListener('message',e=>{ if(e.source!==window||e.origin!==location
 function fxPing(){ try{ window.postMessage({type:'HH_FILL_PING',v:1},location.origin); }catch(e){} }
 const fxOn=p=>FX.present&&FX.sites.includes(p);
 const fxShow=p=>FX_SITES.includes(p)&&(fxOn(p)||(!IS_ANDROID&&!IS_IOS));
-function fxHTML(p){ if(!FX_SITES.includes(p)) return ''; return `<button class="btn block fxbtn" type="button" data-fillext ${fxShow(p)?'':'hidden'}>\ud83e\udde9 Fill ${esc(PLATFORMS[p].name)}</button>`; }
+function fxHTML(p){ if(!FX_SITES.includes(p)) return ''; return `<button class="btn block fxbtn" type="button" data-fillext ${fxShow(p)?'':'hidden'}>${IC('wand')} Fill ${esc(PLATFORMS[p].name)}</button>`; }
 function fxPaintAll(){ document.querySelectorAll('.pcard [data-fillext]').forEach(b=>{ b.hidden=!fxShow(b.closest('.pcard').dataset.p); }); }
 function fileToDataURL(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsDataURL(f); }); }
 async function fillExt(p){
@@ -1131,8 +1165,8 @@ function route(){
 function renderInventory(){
   document.querySelectorAll('.sheet').forEach(x=>x.remove());
   $('#app').innerHTML=`
-  <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}<button type="button" class="about-i" id="aboutI" aria-label="About ${esc(APP_NAME)}: website and help" aria-expanded="false" aria-controls="aboutPop">i</button></h1><p class="tag">${esc(APP_TAGLINE)}</p>
-    <div class="about-pop" id="aboutPop" role="dialog" aria-label="About ${esc(APP_NAME)}" hidden><a class="btn sm" id="popSite" href="${SITE_URL}"${siteLinkAttrs()}>\ud83c\udf10 ${esc(APP_NAME)} website \u2197</a><a class="btn sm ghost" id="popHelp" href="${SITE_HELP_URL}"${siteLinkAttrs()}>Help \u2197</a><button type="button" class="btn sm ghost" id="popClose">Close</button></div>
+  <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}<button type="button" class="about-i" id="aboutI" aria-label="About ${esc(APP_NAME)}: website and help" aria-expanded="false" aria-controls="aboutPop">${IC('info')}</button></h1><p class="tag">${esc(APP_TAGLINE)}</p>
+    <div class="about-pop" id="aboutPop" role="dialog" aria-label="About ${esc(APP_NAME)}" hidden><a class="btn sm" id="popSite" href="${SITE_URL}"${siteLinkAttrs()}>${IC('globe')} ${esc(APP_NAME)} website ${IC('external','tr')}</a><a class="btn sm ghost" id="popHelp" href="${SITE_HELP_URL}"${siteLinkAttrs()}>Help ${IC('external','tr')}</a><button type="button" class="btn sm ghost" id="popClose">Close</button></div>
     <svg class="ornament" viewBox="0 0 120 8" aria-hidden="true"><path d="M0 4h48M72 4h48" stroke="currentColor"/><circle cx="60" cy="4" r="3" fill="currentColor"/><circle cx="52" cy="4" r="1.5" fill="currentColor"/><circle cx="68" cy="4" r="1.5" fill="currentColor"/></svg></header>
   <section class="stats" id="stats"></section>
   <div id="globalAlert"></div>
@@ -1144,7 +1178,7 @@ function renderInventory(){
     <select class="sel" id="sort" aria-label="Sort">
       ${[['new','Newest first'],['old','Oldest first'],['phigh','Price: high \u2192 low'],['plow','Price: low \u2192 high'],['az','Title A\u2013Z']].map(([k,l])=>`<option value="${k}" ${UI.sort===k?'selected':''}>${l}</option>`).join('')}
     </select>
-    <button class="btn sm ghost" id="viewT">${UI.view==='grid'?'\u2630 List':'\u25a6 Grid'}</button>
+    <button class="btn sm ghost" id="viewT">${UI.view==='grid'?IC('list')+' List':IC('grid')+' Grid'}</button>
   </div>
   <div class="items ${UI.view}" id="list"></div>`;
   $('#q').addEventListener('input',e=>{ UI.q=e.target.value; renderList(); });
@@ -1210,7 +1244,7 @@ function acctCardHTML(k){
   <label class="f"><span>${esc(nl)} <i class="opt">(optional)</i></span><input class="inp" data-af="username" value="${esc(a.username)}" maxlength="60" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(P.name)} ${esc(nl.toLowerCase())}"></label>
   <label class="f"><span>Shop / profile link <i class="opt">(optional)</i></span><input class="inp" type="url" data-af="link" value="${esc(a.link)}" maxlength="300" inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://\u2026" aria-label="${esc(P.name)} shop or profile link"></label>
   <p class="note">${hint}</p>
-  <div class="pbtns"><a class="btn sm primary" data-asignup href="${S.signup||'#'}" target="_blank" rel="noopener" style="${a.signedUp?'display:none':''}">Sign up on ${esc(P.name)} \u2197</a><a class="btn sm ${a.signedUp?'primary':''}" data-ashop href="${esc(link||'#')}" target="_blank" rel="noopener noreferrer" style="${link?'':'display:none'}">Open my shop \u2197</a></div>
+  <div class="pbtns"><a class="btn sm primary" data-asignup href="${S.signup||'#'}" target="_blank" rel="noopener" style="${a.signedUp?'display:none':''}">Sign up on ${esc(P.name)} ${IC('external','tr')}</a><a class="btn sm ${a.signedUp?'primary':''}" data-ashop href="${esc(link||'#')}" target="_blank" rel="noopener noreferrer" style="${link?'':'display:none'}">Open my shop ${IC('external','tr')}</a></div>
 </section>`;
 }
 function paintAcct(card){
@@ -1224,9 +1258,9 @@ function renderAccounts(){
   document.querySelectorAll('.sheet').forEach(x=>x.remove());
   const keys=acctKeys();
   $('#app').innerHTML=`
-  <header class="top"><a class="backlink" href="#/backup">\u2039 Settings</a><h1>My accounts</h1><p class="tag">your selling sites in one place</p></header>
-  <div class="pwnote" id="pwNote"><b>\ud83d\udd12 No passwords here, ever.</b> To keep your logins safe, let Google Password Manager save them (Chrome offers when you sign in), then see them any time at passwords.google.com.
-    <a class="btn sm block" id="pwLink" href="${PW_MANAGER_URL}" target="_blank" rel="noopener noreferrer">Open Google Password Manager \u2197</a></div>
+  <header class="top"><a class="backlink" href="#/backup">${IC('back')} Settings</a><h1>My accounts</h1><p class="tag">your selling sites in one place</p></header>
+  <div class="pwnote" id="pwNote"><b>${IC('lock','t')} No passwords here, ever.</b> To keep your logins safe, let Google Password Manager save them (Chrome offers when you sign in), then see them any time at passwords.google.com.
+    <a class="btn sm block" id="pwLink" href="${PW_MANAGER_URL}" target="_blank" rel="noopener noreferrer">Open Google Password Manager ${IC('external','tr')}</a></div>
   <p class="anote">Usernames and links are private: they stay on this phone and in your own Google Drive backup.</p>
   <div id="acctList">${keys.map(acctCardHTML).join('')}</div>
   <p class="anote">Missing a site? Turn it on in <a href="#/backup">Settings \u2192 Your selling sites</a>.</p>`;
@@ -1246,8 +1280,8 @@ function setCloset(k){ if(!closetKeys().includes(k)) k='all'; const was=UI.close
   if(was!==k){ if(k==='all'&&UI.filter==='none') UI.filter='unlisted'; else if(k!=='all'&&UI.filter==='unlisted') UI.filter='none'; } }
 // Filter tests. All closet: item-wide state. Site closet: that site's state ("Not posted" = not on this site and not sold anywhere).
 const CLOSET_FILTERS={
-  all:[['all','All',()=>true],['unlisted','Not posted',(it,x)=>x.unlisted],['listed','Listed',(it,x)=>x.listed&&!x.sold],['sold','Sold',(it,x)=>x.sold],['delist','\u26a0 Needs delisting',(it,x)=>x.needsDelist]],
-  site:[['all','All',()=>true],['none','Not posted',(it,x,s)=>s==='none'&&!x.sold],['listed','Listed',(it,x,s)=>s==='listed'],['sold','Sold',(it,x,s)=>s==='sold'],['delist','\u26a0 Delist here',(it,x,s)=>s==='listed'&&x.sold]],
+  all:[['all','All',()=>true],['unlisted','Not posted',(it,x)=>x.unlisted],['listed','Listed',(it,x)=>x.listed&&!x.sold],['sold','Sold',(it,x)=>x.sold],['delist',IC('warn')+' Needs delisting',(it,x)=>x.needsDelist]],
+  site:[['all','All',()=>true],['none','Not posted',(it,x,s)=>s==='none'&&!x.sold],['listed','Listed',(it,x,s)=>s==='listed'],['sold','Sold',(it,x,s)=>s==='sold'],['delist',IC('warn')+' Delist here',(it,x,s)=>s==='listed'&&x.sold]],
 };
 function closetFilters(c){ return CLOSET_FILTERS[c==='all'?'all':'site']; }
 function closetCount(c,f){ const F=closetFilters(c).find(x=>x[0]===f); return F?ITEMS.filter(it=>F[2](it,st(it),c==='all'?null:siteState(it,c))).length:0; }
@@ -1265,14 +1299,14 @@ function renderList(){
   ITEMS.forEach(it=>{ const x=st(it); if(x.sold){ s.sold++; s.rev+=soldPrice(it); s.cost+=(it.cost||0);} else if(x.listed) s.listed++; });
   // Profit = revenue of sold items minus what you paid for those sold items.
   $('#stats').innerHTML=`
-    <div class="stat"><b>${s.total}</b><span>Items</span></div>
-    <div class="stat"><b>${s.listed}</b><span>Listed</span></div>
-    <div class="stat"><b>${s.sold}</b><span>Sold</span></div>
-    <div class="stat"><b>${money(s.rev)}</b><span>Revenue</span></div>
-    <div class="stat"><b style="color:${s.rev-s.cost<0?'var(--red)':'var(--sage)'}">${money(s.rev-s.cost)}</b><span>Profit</span></div>
-    <div class="stat"><b>${ITEMS.length-s.sold}</b><span>In stock</span></div>`;
+    <div class="stat">${IC('tag')}<b>${s.total}</b><span>Items</span></div>
+    <div class="stat">${IC('store')}<b>${s.listed}</b><span>Listed</span></div>
+    <div class="stat">${IC('bag')}<b>${s.sold}</b><span>Sold</span></div>
+    <div class="stat">${IC('cash')}<b>${money(s.rev)}</b><span>Revenue</span></div>
+    <div class="stat">${IC('trend')}<b style="color:${s.rev-s.cost<0?'var(--red)':'var(--sage)'}">${money(s.rev-s.cost)}</b><span>Profit</span></div>
+    <div class="stat">${IC('box')}<b>${ITEMS.length-s.sold}</b><span>In stock</span></div>`;
   const nd=ITEMS.filter(it=>st(it).needsDelist);
-  $('#globalAlert').innerHTML = nd.length ? `<button class="alert" id="ndBtn"><span class="x">\u26a0</span><span>${nd.length} sold item${nd.length>1?'s are':' is'} still listed elsewhere<small>Tap to see what to remove</small></span></button>` : '';
+  $('#globalAlert').innerHTML = nd.length ? `<button class="alert" id="ndBtn"><span class="x">${IC('warn')}</span><span>${nd.length} sold item${nd.length>1?'s are':' is'} still listed elsewhere<small>Tap to see what to remove</small></span></button>` : '';
   if(nd.length) $('#ndBtn').onclick=()=>{ setCloset('all'); UI.filter='delist'; renderList(); };
   // closet tabs: All (items) and each site (items listed there)
   $('#closets').innerHTML=closetKeys().map(k=>{ const n=k==='all'?ITEMS.length:ITEMS.filter(it=>siteState(it,k)==='listed').length;
@@ -1280,7 +1314,7 @@ function renderList(){
     return `<button type="button" role="tab" class="chip closet ${C===k?'on':''}" data-closet="${k}" aria-selected="${C===k}" aria-label="${esc(al)}">${esc(nm)}<span class="n">${n}</span></button>`; }).join('');
   $('#filters').innerHTML=closetFilters(C).map(([k,l])=>`<button type="button" class="chip ${k==='delist'?'warn':''} ${UI.filter===k?'on':''}" data-f="${k}" aria-pressed="${UI.filter===k}">${l}<span class="n">${closetCount(C,k)}</span></button>`).join('');
   { const sb=$('#shopBar'), nm=isAll?'':PLATFORMS[C].name, u=isAll?'':shopUrl(C);
-    sb.innerHTML=isAll?'':u?`<a class="btn sm" id="openShop" href="${esc(u)}" target="_blank" rel="noopener noreferrer">Open my ${esc(nm)} shop \u2197</a>`:`<a class="btn sm ghost" id="addShop" href="#/accounts">Add my ${esc(nm)} shop link \u203a</a>`; }
+    sb.innerHTML=isAll?'':u?`<a class="btn sm" id="openShop" href="${esc(u)}" target="_blank" rel="noopener noreferrer">Open my ${esc(nm)} shop ${IC('external','tr')}</a>`:`<a class="btn sm ghost" id="addShop" href="#/accounts">Add my ${esc(nm)} shop link ${IC('next','tr')}</a>`; }
   $('#viewT').style.display=isAll?'':'none';   // site closets are always one card per row (big status buttons)
   const list=closetList(C,UI.filter,UI.q,UI.sort);
   const el=$('#list');
@@ -1293,7 +1327,7 @@ function renderList(){
     if(!isAll){ const ss=siteState(it,C), dlh=ss==='listed'&&x.sold, cls=dlh?'delist':ss;
       return `<div class="card ccard" data-id="${it.id}">
       <a class="clink" href="#/item/${it.id}">${thumb}<div class="ci"><div class="sku">${esc(it.sku)}</div><div class="t">${esc(buildTitle(it,80)||'Untitled')}</div>
-        <div class="price">${money(x.sold?soldPrice(it):it.price)}</div><span class="cstate ${cls}">${dlh?'\u26a0 Sold elsewhere \u2014 delist':esc(STATUS_LABEL[ss])}${ss==='none'&&x.sold?' \u00b7 sold elsewhere':''}</span></div></a>
+        <div class="price">${money(x.sold?soldPrice(it):it.price)}</div><span class="cstate ${cls}">${dlh?IC('warn','t')+' Sold elsewhere \u2014 delist':esc(STATUS_LABEL[ss])}${ss==='none'&&x.sold?' \u00b7 sold elsewhere':''}</span></div></a>
       <div class="cseg" role="group" aria-label="${esc(it.sku)} on ${esc(PLATFORMS[C].name)}">${['none','listed','sold'].map(k=>`<button type="button" data-cs="${k}" class="${ss===k?'on':''}" aria-pressed="${ss===k}">${STATUS_LABEL[k]}</button>`).join('')}</div></div>`; }
     return `<a class="card" href="#/item/${it.id}">
       ${x.needsDelist?`<span class="ribbon">DELIST \u00d7${dl.length}</span>`:x.sold?`<span class="ribbon sold">SOLD</span>`:''}
@@ -1335,17 +1369,17 @@ async function renderForm(id){
   const opt=(arr,sel)=>arr.map(a=>{ const [k,l]=Array.isArray(a)?a:[a,a==='t-shirt'?'T-shirt':cap(a)]; return `<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(l)}</option>`; }).join('');
   const inp=(n,l,extra='')=>`<label class="f"><span>${l}</span><input name="${n}" value="${esc(v[n]??'')}" ${extra}></label>`;
   $('#app').innerHTML=`
-  <div class="bar"><a class="btn sm ghost" href="${it?'#/item/'+it.id:'#/'}">\u2039 Back</a><span class="ttl">${it?'Edit '+esc(it.sku):'New item'}</span><span style="width:70px"></span></div>
+  <div class="bar"><a class="btn sm ghost" href="${it?'#/item/'+it.id:'#/'}">${IC('back')} Back</a><span class="ttl">${it?'Edit '+esc(it.sku):'New item'}</span><span style="width:70px"></span></div>
   <form id="form" autocomplete="off">
     <fieldset><legend>Photos</legend>
       <div class="pickers">
-        <label class="btn primary pick">\ud83d\udcf7 Take photo<input type="file" accept="image/*" capture="environment" id="camIn"></label>
-        <label class="btn pick">\ud83d\uddbc From gallery<input type="file" accept="image/*" multiple id="galIn"></label>
+        <label class="btn primary pick">${IC('camera')} Take photo<input type="file" accept="image/*" capture="environment" id="camIn"></label>
+        <label class="btn pick">${IC('image')} From gallery<input type="file" accept="image/*" multiple id="galIn"></label>
       </div>
       <div class="photos" id="photos"></div>
       <p class="note" id="photoNote">Photos are resized to ${IMG_MAX_PX}px JPEG to save space. \u2605 sets the cover photo.</p>
       <div class="aibox" id="aiBox">
-        <button type="button" class="btn rust block aibtn" id="aiBtn">Draft with AI \u2728 <span class="plusb">Plus</span></button>
+        <button type="button" class="btn rust block aibtn" id="aiBtn">Draft with AI ${IC('sparkle','tr')} <span class="plusb">Plus</span></button>
         <p class="note" id="aiNote">Uses your first ${AI_MAX_PHOTOS} photos and fills in only the empty boxes. Photos go to Google Gemini to write the draft; Hanger Hustle doesn\u2019t keep them.</p>
         <div id="aiOut" aria-live="polite"></div>
         <div id="aiGsi"></div>
@@ -1383,7 +1417,7 @@ async function renderForm(id){
     <div class="sticky-save"><button class="btn primary block" type="submit" id="saveBtn">${it?'Save changes':'Save item'}</button></div>
   </form>`;
   const drawPhotos=()=>{ $('#photos').innerHTML=EDIT.photos.map((p,i)=>`<div class="ph"><img src="${p.url}" alt="">
-    <button type="button" class="rm" data-rm="${i}" aria-label="Remove photo">\u2715</button>${i?`<button type="button" class="cv" data-cv="${i}" aria-label="Make cover">\u2605</button>`:'<span class="badge">COVER</span>'}</div>`).join(''); };
+    <button type="button" class="rm" data-rm="${i}" aria-label="Remove photo">${IC('close')}</button>${i?`<button type="button" class="cv" data-cv="${i}" aria-label="Make cover">${IC('star')}</button>`:'<span class="badge">COVER</span>'}</div>`).join(''); };
   drawPhotos();
   $('#photos').addEventListener('click',e=>{
     const rm=e.target.closest('[data-rm]'), cv=e.target.closest('[data-cv]');
@@ -1524,7 +1558,7 @@ function aiApply(res){
   const pr=d.price; if(pr&&Number.isFinite(+pr.low)&&Number.isFinite(+pr.high)){ const mid=Math.round((+pr.low+ +pr.high)/2);
     priceHTML=`<br>AI price guess: <b>$${+pr.low}\u2013$${+pr.high}</b>${pr.reason?` (${esc(pr.reason)})`:''}. ${aiIsPriceEmpty()?`<button type="button" class="btn sm" id="aiUsePrice" data-p="${mid}">Use $${mid}</button>`:''}`; }
   const kept=[...AI_TEXT,...AI_SELECT].filter(n=>!aiIsEmpty(n)&&!EDIT.aiFilled.has(n)&&aiField(n)&&(AI_SELECT.includes(n)||aiField(n).value.trim())).length;
-  aiMsg(`\u2728 <b>${filled.length?`Filled ${filled.length} empty box${filled.length===1?'':'es'}:`:'Nothing to fill: every box already had something in it.'}</b> ${esc(filled.join(', '))}${filled.length?'.':''}`
+  aiMsg(`${IC('sparkle','t')} <b>${filled.length?`Filled ${filled.length} empty box${filled.length===1?'':'es'}:`:'Nothing to fill: every box already had something in it.'}</b> ${esc(filled.join(', '))}${filled.length?'.':''}`
     +`${kept?` Kept everything you typed.`:''} Yellow boxes came from the AI: please check them before saving.${priceHTML}${aiQuotaLine(res.quota)}`,'ok');
   const up=$('#aiUsePrice'); if(up) up.onclick=()=>{ if(aiIsPriceEmpty()){ aiSet('price',up.dataset.p); toast('Price set to $'+up.dataset.p); } up.remove(); };
   aiQuestions(Array.isArray(res.questions)?res.questions:[]);
@@ -1575,14 +1609,14 @@ async function renderDetail(id){
   const kv=[['Brand',it.brand],['Type',typeLabel(it.type)],['Era',it.era],['Size',it.size],['Color',it.color],['Material',it.material],['Condition',condLabel(it.condition)],['Flaws',it.flaws],
     ['Measurements',measLines(it,'').join(' \u00b7 ')],['Keywords',it.keywords],['Cost',money(it.cost)],['Asking',money(it.price)]].filter(x=>x[1]&&x[1]!=='\u2014');
   $('#app').innerHTML=`
-  <div class="bar"><a class="btn sm ghost" href="#/">\u2039 Inventory</a><span class="ttl">${esc(it.sku)}</span><a class="btn sm" href="#/edit/${it.id}">Edit</a></div>
+  <div class="bar"><a class="btn sm ghost" href="#/">${IC('back')} Inventory</a><span class="ttl">${esc(it.sku)}</span><a class="btn sm" href="#/edit/${it.id}">Edit</a></div>
   <div id="delist"></div>
   ${urls.length?`<div class="gallery">${urls.map(u=>`<img src="${u}" alt="">`).join('')}</div>`:`<a class="nophoto" href="#/edit/${it.id}">+ Add photos</a>`}
-  ${urls.length?`<div class="pbtns"><button class="btn primary" id="dlBtn">\u2b07 ${IS_IOS?'Save photos':'Save photos to phone'}</button><button class="btn" id="shareBtn">\u2934 Share photos\u2026</button></div>
+  ${urls.length?`<div class="pbtns"><button class="btn primary" id="dlBtn">${IC('download')} ${IS_IOS?'Save photos':'Save photos to phone'}</button><button class="btn" id="shareBtn">${IC('share')} Share photos\u2026</button></div>
   <p class="note">${IS_IOS?'Save photos opens the share sheet: tap <b>Save Images</b> to put them in Photos.':'Save photos puts them in your Gallery (Downloads folder), named '+esc(DETAIL.files[0].name)+' and so on. Share photos\u2026 opens the phone\u2019s share sheet instead.'}</p>`:''}
   <div class="summary"><div class="sku">${esc(it.sku)}</div><h2>${esc(buildTitle(it,80))}</h2>
     <div class="row between" style="margin-top:6px"><span class="price" style="font-size:1.375rem">${money(it.price)}</span><span id="soldBox"></span></div>
-    <div class="sbtns"><button class="btn sm" id="goFind">\ud83d\udd0e Find prices</button></div>
+    <div class="sbtns"><button class="btn sm" id="goFind">${IC('search')} Find prices</button></div>
     <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
 
   <h2 class="sec">Listings</h2>
@@ -1609,31 +1643,31 @@ function pcardHTML(p,it){
   const P=PLATFORMS[p], L=listingFor(p,it), s=it.status[p]||{state:'none',url:''}, M=POST_MODES[P.mode], bot=P.mode!=='prefill';
   const warn=p==='etsy'?etsyVintageWarning(it):'';
   return `<section class="pcard" data-p="${p}" style="--pc:${P.color}">
-    <div class="hd"><div><h3>${P.name}</h3><span class="mode ${bot?'bot':'you'}" title="${esc(M.label)}">${bot?'\u2699 ':'\u261d '}${esc(M.label)}</span></div>
+    <div class="hd"><div><h3>${P.name}</h3><span class="mode ${bot?'bot':'you'}" title="${esc(M.label)}">${bot?IC('bot'):IC('user')}${esc(M.label)}</span></div>
       <div class="seg" role="group" aria-label="${P.name} status">${[['none','Not posted'],['listed','Listed'],['sold','Sold']].map(([k,l])=>`<button type="button" data-s="${k}">${l}</button>`).join('')}</div></div>
     ${P.modeNote?`<p class="hint" style="margin:6px 0 0">${esc(P.modeNote)}</p>`:''}
-    ${warn?`<div class="gs err" style="margin-top:8px">\u26a0 ${esc(warn)}</div>`:''}
-    ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
-         :`<button class="btn primary block post" type="button" style="margin-top:10px">\u261d Post to ${P.name}</button>`}
+    ${warn?`<div class="gs err" style="margin-top:8px">${IC('warn','t')} ${esc(warn)}</div>`:''}
+    ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?IC('check')+' Queued for bot':IC('bot')+' Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
+         :`<button class="btn primary block post" type="button" style="margin-top:10px">${IC('send')} Post to ${P.name}</button>`}
     ${fxHTML(p)}
     ${caHTML(p)}
-    <div class="pbtns qcopy" style="grid-template-columns:1fr 1fr">${p==='depop'?'':'<button class="btn sm" type="button" data-copy="t">Copy title</button>'}<button class="btn sm" type="button" data-copy="d" ${p==='depop'?'style="grid-column:1/-1"':''}>Copy description</button></div>
+    <div class="pbtns qcopy" style="grid-template-columns:1fr 1fr">${p==='depop'?'':'<button class="btn sm" type="button" data-copy="t">'+IC('copy')+' Copy title</button>'}<button class="btn sm" type="button" data-copy="d" ${p==='depop'?'style="grid-column:1/-1"':''}>${IC('copy')} Copy description</button></div>
     <div class="checklist" hidden></div>
     ${cfHTML(p)}
-    <details class="ed"><summary>\u270e Edit text \u00b7 copy pieces \u00b7 listing link</summary>
+    <details class="ed"><summary>${IC('edit')} Edit text \u00b7 copy pieces \u00b7 listing link</summary>
     <div class="lbl"><span>${p==='depop'?'Headline (Depop has no title field)':'Title'}</span><span class="cnt" data-c="t"></span></div>
     <textarea class="inp ti" rows="2">${esc(L.title)}</textarea>
     <div class="lbl"><span>Description</span><span class="cnt" data-c="d"></span></div>
     <textarea class="inp de" rows="9">${esc(L.desc)}</textarea>
     ${P.tagsMax?`<div class="lbl"><span>Tags (comma separated)</span><span class="cnt" data-c="g"></span></div><textarea class="inp tg" rows="3">${esc(L.tags||'')}</textarea>`:''}
     <div class="pbtns">
-      <button class="btn sm" data-copy="t">Copy title</button><button class="btn sm" data-copy="d">Copy description</button>
-      ${P.tagsMax?'<button class="btn sm" data-copy="g">Copy tags</button>':''}
-      <a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site \u2197</a>
+      <button class="btn sm" data-copy="t">${IC('copy')} Copy title</button><button class="btn sm" data-copy="d">${IC('copy')} Copy description</button>
+      ${P.tagsMax?'<button class="btn sm" data-copy="g">'+IC('copy')+' Copy tags</button>':''}
+      <a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open site ${IC('external','tr')}</a>
     </div>
-    <div class="lbl"><span>Listing URL (optional)</span><a class="lnk" target="_blank" rel="noopener" style="display:none">open listing \u2197</a></div>
+    <div class="lbl"><span>Listing URL (optional)</span><a class="lnk" target="_blank" rel="noopener" style="display:none">open listing ${IC('external','tr')}</a></div>
     <input class="inp url" type="url" inputmode="url" placeholder="Paste the live listing link" value="${esc(s.url||'')}">
-    <button type="button" class="btn sm ghost regen" style="margin-top:8px">\u21ba Regenerate text from details</button>
+    <button type="button" class="btn sm ghost regen" style="margin-top:8px">${IC('refresh')} Regenerate text from details</button>
     </details>
   </section>`;
 }
@@ -1664,10 +1698,10 @@ function showChecklist(p,copied,photoMode,opened,needOpen){
   const openHint=(!opened&&!needOpen)?`<div class="gs" style="margin:0 0 8px">${photoMode==='shared'?'After saving the photos,':'Now'} tap <b>Open ${esc(P.name)}</b>.</div>`:'';
   el.hidden=false;
   el.innerHTML=`<p class="stepcard"><b>${head}</b></p>${firstDl}${openHint}<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
-    <div class="pbtns">${isD?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${isD?'':'primary'}" data-cl="d">Copy description</button>
-    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a>${shopUrl(p)?`<a class="btn sm openShop" href="${esc(shopUrl(p))}" target="_blank" rel="noopener noreferrer">Open my shop \u2197</a>`:''}
-    ${n?`<button class="btn sm" data-cl="save">\u2b07 Save photos again</button><button class="btn sm ghost" data-cl="share">\u2934 Share photos\u2026</button>`:''}</div>
-    <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed on ${esc(P.name)}</button>`;
+    <div class="pbtns">${isD?'':'<button class="btn sm" data-cl="t">'+IC('copy')+' Copy title</button>'}<button class="btn sm ${isD?'':'primary'}" data-cl="d">${IC('copy')} Copy description</button>
+    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} ${IC('external','tr')}</a>${shopUrl(p)?`<a class="btn sm openShop" href="${esc(shopUrl(p))}" target="_blank" rel="noopener noreferrer">Open my shop ${IC('external','tr')}</a>`:''}
+    ${n?`<button class="btn sm" data-cl="save">${IC('download')} Save photos again</button><button class="btn sm ghost" data-cl="share">${IC('share')} Share photos\u2026</button>`:''}</div>
+    <button class="btn primary block" data-cl="done" style="margin-top:8px">${IC('check')} I published it \u2014 mark Listed on ${esc(P.name)}</button>`;
   $('.openSite',el).addEventListener('click',()=>{ try{ localStorage.setItem(DL_OK_KEY,'1'); }catch(e){} });
   el.querySelectorAll('[data-cl]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.cl;
     if(k==='done'){ clearPostAsk(); await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
@@ -1713,7 +1747,7 @@ function clearPostAsk(){ POST_ASK=null; const a=document.getElementById('postAsk
 function armPostAsk(p){ if(!DETAIL||!DETAIL.item||siteState(DETAIL.item,p)!=='none') return; POST_ASK={id:DETAIL.item.id,p,at:Date.now(),away:false}; }
 function showPostAsk(){ const A=POST_ASK; if(!A||!DETAIL||!DETAIL.item||DETAIL.item.id!==A.id||siteState(DETAIL.item,A.p)!=='none'||document.getElementById('postAsk')) return;
   const P=PLATFORMS[A.p], d=document.createElement('div'); d.className='postask'; d.id='postAsk'; d.setAttribute('role','dialog'); d.setAttribute('aria-label',`Posted on ${P.name}?`);
-  d.innerHTML=`<span>Did you post it on <b>${esc(P.name)}</b>?</span><button type="button" class="btn sm primary" id="paYes">\u2713 Yes, mark Listed</button><button type="button" class="btn sm" id="paNo">Not yet</button>`;
+  d.innerHTML=`<span>Did you post it on <b>${esc(P.name)}</b>?</span><button type="button" class="btn sm primary" id="paYes">${IC('check')} Yes, mark Listed</button><button type="button" class="btn sm" id="paNo">Not yet</button>`;
   document.body.appendChild(d);
   $('#paYes',d).onclick=async()=>{ const p=A.p; clearPostAsk(); await setStatus(p,'listed'); const c=$(`.pcard[data-p="${p}"] .checklist`); if(c) c.hidden=true; };
   $('#paNo',d).onclick=()=>clearPostAsk(); }
@@ -1751,7 +1785,7 @@ function bindPcard(p){
   el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setStatus(p,b.dataset.s));
   $('.post',el).onclick=()=>postFlow(p);
   const q=$('.qbot',el); if(q) q.onclick=async()=>{ const s=it.status[p]; s.botQueued=s.botQueued?null:Date.now(); it.updatedAt=Date.now(); await putItem(it);
-    q.textContent=s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'; q.classList.toggle('primary',!!s.botQueued);
+    q.innerHTML=s.botQueued?IC('check')+' Queued for bot':IC('bot')+' Queue for bot'; q.classList.toggle('primary',!!s.botQueued);
     toast(s.botQueued?`Queued for the ${P.name} bot (it isn\u2019t connected yet \u2014 nothing is posted until it is)`:'Removed from bot queue'); };
   const url=$('.url',el), lnk=$('.lnk',el);
   const showLnk=()=>{ const v=url.value.trim(); lnk.style.display=/^https?:\/\//.test(v)?'':'none'; lnk.href=v; };
@@ -1781,7 +1815,7 @@ function renderComps(){
     if(p==='facebook'&&c.feePct==null&&c.feeFixed==null) return '10% shipped'; const d=FEE_DEFAULTS[p]; const pct=c.feePct??d.pct??0, fx=c.feeFixed??d.fixed??0; return `${pct}%${fx?' + $'+Number(fx).toFixed(2):''}`; };
   const bestRow=A.rows.find(r=>r.p===A.best);
   $('#comps').innerHTML=`
-    ${A.best?`<div class="suggest" id="suggestBox"><span style="font-size:1.625rem">\ud83d\udca1</span><div>
+    ${A.best?`<div class="suggest" id="suggestBox">${IC('bulb','big')}<div>
       ${A.suggested!=null?`<div>Typical price <b id="suggested">${money(A.suggested)}</b> <span class="hint">(comp-weighted median)</span></div>`:''}
       <div style="font-size:var(--fs-body)">Best net: <strong id="bestNet">${PLATFORMS[A.best].name}</strong> \u00b7 ${money(A.basis==='median'?bestRow.netMed:bestRow.netAsk)} ${A.basis==='median'?'at its median sold price':'at your asking price'}</div>
     </div></div>`:`<p class="hint">Add an asking price or comps to see estimated payouts.</p>`}
@@ -1790,7 +1824,7 @@ function renderComps(){
     </tbody></table></div>
     <p class="hint" style="margin:8px 0 0">Net@ask = ${money(it.price)} asking minus fees. \u2605 best = highest net at that site's median sold price (or at asking if no comps). Fees are estimates; shipping not included.</p>
     <p class="hint">Labels show where each row came from: <span class="clab sold">Sold</span> = what items sold for, <span class="clab asking">Asking</span> = prices of items still for sale (usually higher than they sell for). Fee defaults last checked ${FEES_CHECKED}. Search links are under Find prices.</p>
-    <details class="ce"><summary>\u270e Enter comps by site</summary><div class="in">
+    <details class="ce"><summary>${IC('edit')} Enter comps by site</summary><div class="in">
       ${shownKeys(it).map(p=>{ const c=it.comps[p]||{}; const f=(k,l,ph='')=>`<label>${l}<input data-cp="${p}" data-ck="${k}" inputmode="decimal" value="${esc(c[k]??'')}" placeholder="${ph}"></label>`;
         return `<div style="margin-top:10px"><b style="font-size:var(--fs-body)">${PLATFORMS[p].name}</b> <span class="hint">${esc(FEE_DEFAULTS[p].note)}</span>
         <div class="g6">${f('low','Low $')}${f('median','Median $')}${f('high','High $')}${f('count','# comps')}${f('feePct','Fee %',FEE_DEFAULTS[p].pct??'auto')}${f('feeFixed','Fee $',FEE_DEFAULTS[p].fixed??'auto')}</div></div>`; }).join('')}
@@ -1813,10 +1847,10 @@ function renderPricing(){ renderFind(); renderRec(); renderComps(); }
 function renderFind(){
   const it=DETAIL.item, q=compQuery(it), keys=shownKeys(it);
   $('#findPrices').innerHTML=`
-    <div class="lbl"><label for="compQ">Search for</label><button class="btn sm ghost" id="qReset" ${it.compQuery?'':'hidden'}>\u21ba Smart search</button></div>
+    <div class="lbl"><label for="compQ">Search for</label><button class="btn sm ghost" id="qReset" ${it.compQuery?'':'hidden'}>${IC('refresh')} Smart search</button></div>
     <input class="inp" id="compQ" value="${esc(q)}" autocomplete="off" enterkeyhint="search">
     <p class="hint" style="margin:4px 0 0">Built from brand, type, era, material${['jeans','pants','shoes'].includes(it.type)?' and size':''}. Edit it if the results look off (fewer words = more results).</p>
-    <div class="fp-links" id="compLinks">${keys.map(p=>{ const S=PRICE_SEARCH[p]; return `<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${esc(searchURL(p,q))}"><span>${PLATFORMS[p].name} ${S.sold?'sold':'search'} \u2197</span><small class="${S.sold?'sold':''}">${esc(S.note)}</small></a>`; }).join('')}</div>
+    <div class="fp-links" id="compLinks">${keys.map(p=>{ const S=PRICE_SEARCH[p]; return `<a class="btn sm" data-sp="${p}" target="_blank" rel="noopener" href="${esc(searchURL(p,q))}"><span>${PLATFORMS[p].name} ${S.sold?'sold':'search'} ${IC('external','tr')}</span><small class="${S.sold?'sold':''}">${esc(S.note)}</small></a>`; }).join('')}</div>
     <div class="lbl" style="margin-top:14px"><span>Jot what you saw</span><span class="hint">Typical = the price most of them went for</span></div>
     <div id="quickEntry">${keys.map(p=>{ const c=it.comps[p]||{}, S=PRICE_SEARCH[p], t=c.type||(S.sold?'sold':'asking');
       const f=(k,l)=>`<label>${l}<input data-qp="${p}" data-qk="${k}" inputmode="decimal" value="${esc(c[k]??'')}" aria-label="${PLATFORMS[p].name} ${l}"></label>`;
@@ -2181,7 +2215,7 @@ async function restoreFromDrive({confirmFn=confirm}={}){
 /* ---- UI bits ---- */
 const fmtTime = t => t ? new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'never';
 function accountChipHTML(){
-  if(!Auth.signedIn()) return Auth.enabled()?`<a class="acct" href="#/backup" id="acctChip"><span class="dot off"></span>\u2601 Sign in</a>`:'';
+  if(!Auth.signedIn()) return Auth.enabled()?`<a class="acct" href="#/backup" id="acctChip"><span class="dot off"></span>${IC('cloud')} Sign in</a>`:'';
   const p=Auth.profile, dot={ok:'ok',idle:'ok',pending:'pend',running:'pend',error:'err',auth:'err'}[SYNC.state]||'ok';
   return `<a class="acct" href="#/backup" id="acctChip" title="Signed in as ${esc(p.email)}" aria-label="Google account ${esc(p.email)}">${p.picture?`<img src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="ini">${esc((p.name||'?')[0])}</span>`}<span class="nm">${esc((p.name||'').split(' ')[0])}</span><span class="dot ${dot}"></span></a>`;
 }
@@ -2190,8 +2224,8 @@ function updateSyncUI(){
   const box=$('#gStatus'); if(!box) return;
   const L=SYNC.last;
   let h='';
-  if(SYNC.state==='running'||SYNC.state==='pending') h=`<div class="gs pend">\u23f3 ${esc(SYNC.msg)}</div>`;
-  else if(SYNC.state==='error'||SYNC.state==='auth') h=`<div class="gs err" role="alert">\u26a0 Backup problem: ${esc(SYNC.msg)}</div>`;
+  if(SYNC.state==='running'||SYNC.state==='pending') h=`<div class="gs pend">${IC('clock','t')} ${esc(SYNC.msg)}</div>`;
+  else if(SYNC.state==='error'||SYNC.state==='auth') h=`<div class="gs err" role="alert">${IC('warn','t')} Backup problem: ${esc(SYNC.msg)}</div>`;
   h+=`<div class="gs">Last backup: <b id="lastBackup">${fmtTime(L&&L.at)}</b>${L?` \u00b7 ${L.items} items, ${L.photos} photos${L.uploaded||L.deleted?` (${L.uploaded} uploaded, ${L.skipped} unchanged${L.deleted?', '+L.deleted+' removed':''})`:' (nothing new)'}`:''}</div>`;
   if(L&&L.cloudOnly) h+=`<div class="gs pend">${L.cloudOnly} item(s) in your Drive backup aren't on this phone \u2014 tap \u201cRestore from Google Drive\u201d.</div>`;
   box.innerHTML=h;
@@ -2208,9 +2242,9 @@ function googleSectionHTML(){
     <div class="row" style="gap:12px">${p.picture?`<img class="av" src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av ini">${esc((p.name||'?')[0])}</span>`}
       <div style="min-width:0"><div class="hint">Signed in as</div><b id="gEmail" style="display:block;overflow-wrap:anywhere;font-size:var(--fs-body)">${esc(p.email)}</b><div class="hint">${esc(p.name)}</div></div></div>
     <div id="gStatus" style="margin-top:10px"></div>
-    <div class="pbtns"><button class="btn primary" id="gBackup">\u2601 Back up now</button><button class="btn" id="gRestore">\u2b07 Restore from Google Drive</button></div>
+    <div class="pbtns"><button class="btn primary" id="gBackup">${IC('cloud')} Back up now</button><button class="btn" id="gRestore">${IC('download')} Restore from Google Drive</button></div>
     <label class="row" style="margin-top:12px;font-size:var(--fs-body)"><input type="checkbox" id="gAuto" ${localStorage.getItem('ctc-auto-backup')!=='off'?'checked':''} style="width:22px;height:22px"> Back up automatically after changes</label>
-    <div class="pbtns" style="margin-top:8px"><button class="btn sm" id="gSwitch">⇄ Switch account</button><button class="btn sm ghost" id="gSignOut">Sign out</button></div>
+    <div class="pbtns" style="margin-top:8px"><button class="btn sm" id="gSwitch">${IC('swap')} Switch account</button><button class="btn sm ghost" id="gSignOut">Sign out</button></div>
     <p class="note">Each Google account has its own backup. Switching or signing out keeps everything on this phone; each Drive backup stays in its own Google account.</p></fieldset>`;
 }
 const GOOGLE_G='<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
@@ -2238,7 +2272,7 @@ function renderBackup(){
   <header class="top"><h1>Backup &amp; settings</h1><p class="tag">your items live on this phone${Auth.signedIn()?' + your Google Drive':''}</p></header>
   ${googleSectionHTML()}
   <fieldset id="acctBox"><legend>My accounts</legend>
-    <a class="btn block" id="acctLink" href="#/accounts">\ud83d\udc64 My accounts \u203a</a>
+    <a class="btn block" id="acctLink" href="#/accounts">${IC('user')} My accounts ${IC('next','tr')}</a>
     <p class="note">Sign-up links, your usernames and shop links for each site. No passwords.</p>
   </fieldset>
   <fieldset class="sites"><legend>Your selling sites</legend>
@@ -2246,22 +2280,22 @@ function renderBackup(){
     <p class="note">Only checked sites show on items and in price comparisons. Bot sites aren\u2019t connected yet \u2014 you can post those yourself too.</p>
   </fieldset>
   <fieldset><legend>Export</legend>
-    <button class="btn primary block" id="expJson">\u2b07 Full backup (JSON, with photos)</button>
+    <button class="btn primary block" id="expJson">${IC('download')} Full backup (JSON, with photos)</button>
     <p class="note">Restores everything later or on a new phone. Save it to Files / iCloud / Google Drive.</p>
-    <button class="btn block" id="expCsv" style="margin-top:12px">\u2b07 Inventory spreadsheet (CSV, no photos)</button>
+    <button class="btn block" id="expCsv" style="margin-top:12px">${IC('download')} Inventory spreadsheet (CSV, no photos)</button>
   </fieldset>
   <fieldset><legend>Import</legend>
-    <label class="btn block pick">\u2b06 Restore from JSON backup<input type="file" accept="application/json,.json" id="impJson"></label>
+    <label class="btn block pick">${IC('upload')} Restore from JSON backup<input type="file" accept="application/json,.json" id="impJson"></label>
     <p class="note">Merges into current inventory; items with the same ID are replaced.</p>
-    <label class="btn block pick" style="margin-top:12px">\u2b06 Import comps by SKU (JSON)<input type="file" accept="application/json,.json" id="impComps"></label>
+    <label class="btn block pick" style="margin-top:12px">${IC('upload')} Import comps by SKU (JSON)<input type="file" accept="application/json,.json" id="impComps"></label>
     <p class="note">Format: <code>{"V-0001": {"ebay": {"low":20,"median":35,"high":60,"count":12}}}</code></p>
   </fieldset>
   <fieldset><legend>Storage</legend><p class="note" id="storeInfo">Checking\u2026</p>
     <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>
   <fieldset class="about" id="about"><legend>About</legend>
-    <a class="btn primary block" id="siteLink" href="${SITE_URL}"${siteLinkAttrs()}>\ud83c\udf10 ${esc(APP_NAME)} website \u2197</a>
+    <a class="btn primary block" id="siteLink" href="${SITE_URL}"${siteLinkAttrs()}>${IC('globe')} ${esc(APP_NAME)} website ${IC('external','tr')}</a>
     <p class="note" style="text-align:center">hangerhustle.com \u2014 what the app does, how to install it, help</p>
-    <div class="pbtns"><a class="btn sm" id="apkLink" href="${SITE_APK_URL}"${siteLinkAttrs()}>\ud83d\udcf1 Android app download</a><a class="btn sm" id="helpLink" href="${SITE_HELP_URL}"${siteLinkAttrs()}>\u2753 Help &amp; FAQ</a></div>
+    <div class="pbtns"><a class="btn sm" id="apkLink" href="${SITE_APK_URL}"${siteLinkAttrs()}>${IC('phone')} Android app download</a><a class="btn sm" id="helpLink" href="${SITE_HELP_URL}"${siteLinkAttrs()}>${IC('help')} Help &amp; FAQ</a></div>
     <p class="note">This app lives at <b>app.hangerhustle.com</b>; the website is <b>hangerhustle.com</b>. You can also tap the small \u24d8 next to the name on the Inventory screen.</p>
   </fieldset>
   <p class="foot"><a href="privacy.html">Privacy</a> \u00b7 <a href="terms.html">Terms</a> \u00b7 <a href="${SITE_URL}"${siteLinkAttrs()}>Website</a> \u00b7 ${esc(APP_NAME)}</p>`;
