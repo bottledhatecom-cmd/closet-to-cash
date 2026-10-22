@@ -1,7 +1,7 @@
 /* Hanger Hustle service worker: caches the app shell so it opens offline.
    Item data/photos live in IndexedDB, not in this cache. Bump VERSION to force an update. */
 const VERSION = 'ctc-v19';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './privacy.html', './terms.html'];
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png', './icon-maskable-512.png', './privacy.html', './terms.html'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
