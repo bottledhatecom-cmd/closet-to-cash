@@ -188,6 +188,32 @@ details.ce .in{padding:0 12px 12px}
 .checklist ol{margin:0;padding-left:20px}.checklist li{margin:4px 0}
 .checklist .stepcard{margin:0 0 8px;font-size:var(--fs-body);line-height:1.35}
 details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{min-height:44px;display:flex;align-items:center;font-weight:600;font-size:var(--fs-body);color:var(--muted);cursor:pointer}
+/* HH-Closets: a closet per site + All; per-site Not posted / Listed / Sold on each card */
+.closets{padding-top:12px}
+.chip .n{display:inline-block;margin-left:6px;font-weight:700}
+.closets .chip{font-size:var(--fs-body)}
+.closets .chip.on{background:var(--deep);border-color:var(--deep)}
+.items.closet{grid-template-columns:1fr}
+.ccard{display:block}
+.ccard .clink{display:flex;color:inherit;text-decoration:none}
+.ccard .clink .thumb{width:96px;flex:0 0 96px;aspect-ratio:auto;min-height:110px}
+.ccard .ci{flex:1;min-width:0}
+.cstate{display:inline-block;margin-top:4px;font:700 var(--fs-sec) var(--sans);padding:2px 8px;border-radius:999px;background:#eee6da;color:var(--ink)}
+.cstate.listed{background:var(--sage-bg);color:#35502f}.cstate.sold{background:var(--rust);color:#fff}.cstate.delist{background:var(--red-bg);color:var(--red)}
+.cseg{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.cseg button{appearance:none;border:0;background:#fff;color:var(--ink);min-height:52px;padding:4px 6px;font:600 var(--fs-body)/1.15 var(--sans);cursor:pointer;touch-action:manipulation}
+.cseg button+button{border-left:1px solid var(--line)}
+.cseg button.on[data-cs=none]{background:#eee6da;color:var(--ink);box-shadow:inset 0 -4px 0 var(--muted)}
+.cseg button.on[data-cs=listed]{background:var(--sage);color:#fff}
+.cseg button.on[data-cs=sold]{background:var(--rust);color:#fff}
+.alert .dh{display:block;font-size:1.125rem;margin-bottom:2px}
+.dlist{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.drow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff;border:1px solid #f0b4aa;border-radius:12px;padding:8px;color:var(--ink)}
+.drow>b{flex:1 1 100%;font-size:var(--fs-body)}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(45,36,32,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet-in{background:var(--paper);width:100%;max-width:560px;max-height:85vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+.postask{position:fixed;left:8px;right:8px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:30;background:var(--ink);color:#fff;border-radius:16px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:560px;margin:0 auto;font-size:var(--fs-body)}
+.postask>span{flex:1 1 100%}.postask .btn{flex:1 1 auto}
 /* HH-CopyFields: one Copy button per field, in each site's sell-form order */
 details.cf{margin-top:10px;border-top:1px solid var(--line)}
 details.cf>summary{min-height:var(--tap-min);display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;font-size:var(--fs-body);color:var(--deep);cursor:pointer;flex-wrap:wrap}
@@ -425,6 +451,33 @@ function st(it){
 const soldOn = it => PKEYS.filter(k=>it.status?.[k]?.state==='sold');
 const delistTargets = it => st(it).sold ? PKEYS.filter(k=>it.status?.[k]?.state==='listed') : [];
 const soldPrice = it => it.soldPrice!=null ? it.soldPrice : (it.price||0);
+/* HH-Closets: per-site status words + item migration. Items keep status[site]={state:'none'|'listed'|'sold',url,at?,botQueued?}.
+   migrateItem() makes every item (old local data, old JSON backups, old Drive backups) safe: every site key present,
+   legacy/odd states mapped, url a string. Schema 2 = closets. Unit-tested in /workspace/vltest/closets-test.js. */
+const STATUS_LABEL={none:'Not posted',listed:'Listed',sold:'Sold'};
+const ITEM_SCHEMA=2;
+function normState(v){ const s=(v&&typeof v==='object')?v.state:v; if(s===true) return 'listed'; const t=String(s??'').trim().toLowerCase().replace(/[\s_-]+/g,' ');
+  if(['listed','active','live','posted','on','yes','for sale','available'].includes(t)) return 'listed';
+  if(['sold','sold out'].includes(t)) return 'sold'; return 'none'; }
+function migrateItem(it){ if(!it||typeof it!=='object') return it;
+  const old=(it.status&&typeof it.status==='object'&&!Array.isArray(it.status))?it.status:{}, out={};
+  for(const k of PKEYS){ const o=old[k], b=(o&&typeof o==='object')?{...o}:{}; b.state=normState(o); b.url=typeof b.url==='string'?b.url:''; out[k]=b; }
+  for(const k of Object.keys(old)) if(!(k in out)) out[k]=old[k];   // sites this version doesn't know are kept as-is
+  it.status=out; if(!it.custom||typeof it.custom!=='object') it.custom={}; if(!it.comps||typeof it.comps!=='object') it.comps={};
+  if(!st(it).sold){ delete it.soldAt; } it.schema=ITEM_SCHEMA; return it; }
+const siteState = (it,p) => (it&&it.status&&it.status[p]&&it.status[p].state)||'none';
+async function setSiteStatus(it,p,s){
+  it.status={...defaultStatus(),...(it.status||{})}; it.status[p]={...(it.status[p]||{url:''}),state:s,at:Date.now()};
+  if(s==='sold'){ if(it.soldPrice==null) it.soldPrice=it.price||0; it.soldAt=it.soldAt||Date.now(); }
+  if(!st(it).sold){ delete it.soldPrice; delete it.soldAt; }
+  it.updatedAt=Date.now(); await putItem(it); await refresh();
+}
+const safeUrl = u => /^https?:\/\//i.test(String(u||'').trim()) ? String(u).trim() : '';
+// "Sold! Delist it here": reminder only; the app never removes listings itself.
+function delistHTML(it,id){ const dl=delistTargets(it), so=soldOn(it); if(!dl.length) return '';
+  return `<div class="alert" role="alert" id="${id}"><span class="x">\u26a0</span><span><b class="dh">Sold! Delist it here</b>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
+    <small>Reminder only: the app doesn\u2019t remove anything for you. Delist each one now so it can\u2019t sell twice, then tap Removed.</small>
+    <span class="dlist">${dl.map(k=>{ const u=safeUrl(it.status[k].url); return `<span class="drow"><b>${esc(PLATFORMS[k].name)}</b>${u?`<a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Open listing \u2197</a>`:''}<button class="btn sm" data-rmv="${k}">\u2713 Removed from ${esc(PLATFORMS[k].name)}</button></span>`; }).join('')}</span></span></div>`; }
 
 /* ===================== listing generator (pure templates, no AI) ===================== */
 function eraWord(it){ if(!it.era||it.era==='Unknown') return 'Vintage'; if(it.era==='Y2K') return 'Y2K'; if(it.era==='2010s') return '2010s'; return 'Vintage '+it.era; }
@@ -841,7 +894,7 @@ function saveFilesStaggered(files){
 
 /* ===================== app state & routing ===================== */
 let ITEMS=[];
-const UI = { q:'', filter:'all', sort:'new', view:'grid' };
+const UI = { q:'', filter:'all', sort:'new', view:'grid', closet:(()=>{ try{ return localStorage.getItem('ctc-closet')||'all'; }catch(e){ return 'all'; } })() };
 let objectURLs=[]; const revokeAll=()=>{ objectURLs.forEach(u=>URL.revokeObjectURL(u)); objectURLs=[]; };
 let EDIT=null, DETAIL=null;
 async function refresh(){ ITEMS=await getAllItems(); }
@@ -860,30 +913,52 @@ function route(){
 
 /* ---------- Inventory ---------- */
 function renderInventory(){
+  document.querySelectorAll('.sheet').forEach(x=>x.remove());
   $('#app').innerHTML=`
   <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}<button type="button" class="about-i" id="aboutI" aria-label="About ${esc(APP_NAME)}: website and help" aria-expanded="false" aria-controls="aboutPop">i</button></h1><p class="tag">${esc(APP_TAGLINE)}</p>
     <div class="about-pop" id="aboutPop" role="dialog" aria-label="About ${esc(APP_NAME)}" hidden><a class="btn sm" id="popSite" href="${SITE_URL}"${siteLinkAttrs()}>\ud83c\udf10 ${esc(APP_NAME)} website \u2197</a><a class="btn sm ghost" id="popHelp" href="${SITE_HELP_URL}"${siteLinkAttrs()}>Help \u2197</a><button type="button" class="btn sm ghost" id="popClose">Close</button></div>
     <svg class="ornament" viewBox="0 0 120 8" aria-hidden="true"><path d="M0 4h48M72 4h48" stroke="currentColor"/><circle cx="60" cy="4" r="3" fill="currentColor"/><circle cx="52" cy="4" r="1.5" fill="currentColor"/><circle cx="68" cy="4" r="1.5" fill="currentColor"/></svg></header>
   <section class="stats" id="stats"></section>
   <div id="globalAlert"></div>
+  <div class="chips closets" id="closets" role="tablist" aria-label="Closets"></div>
   <input class="search" id="q" type="search" placeholder="Search brand, SKU, keyword\u2026" value="${esc(UI.q)}" autocomplete="off">
-  <div class="chips" id="filters">
-    ${[['all','All'],['unlisted','Unlisted'],['listed','Listed'],['sold','Sold'],['delist','\u26a0 Needs delisting']].map(([k,l])=>`<button class="chip ${k==='delist'?'warn':''} ${UI.filter===k?'on':''}" data-f="${k}">${l}</button>`).join('')}
-  </div>
+  <div class="chips" id="filters" role="group" aria-label="Filter by status"></div>
   <div class="row between">
     <select class="sel" id="sort" aria-label="Sort">
-      ${[['new','Newest first'],['old','Oldest first'],['phigh','Price: high \u2192 low'],['plow','Price: low \u2192 high']].map(([k,l])=>`<option value="${k}" ${UI.sort===k?'selected':''}>${l}</option>`).join('')}
+      ${[['new','Newest first'],['old','Oldest first'],['phigh','Price: high \u2192 low'],['plow','Price: low \u2192 high'],['az','Title A\u2013Z']].map(([k,l])=>`<option value="${k}" ${UI.sort===k?'selected':''}>${l}</option>`).join('')}
     </select>
     <button class="btn sm ghost" id="viewT">${UI.view==='grid'?'\u2630 List':'\u25a6 Grid'}</button>
   </div>
   <div class="items ${UI.view}" id="list"></div>`;
   $('#q').addEventListener('input',e=>{ UI.q=e.target.value; renderList(); });
-  $('#filters').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(!b) return; UI.filter=b.dataset.f; $$('#filters .chip').forEach(c=>c.classList.toggle('on',c===b)); renderList(); });
+  $('#closets').addEventListener('click',e=>{ const b=e.target.closest('[data-closet]'); if(!b) return; setCloset(b.dataset.closet); renderList(); });
+  $('#filters').addEventListener('click',e=>{ const b=e.target.closest('[data-f]'); if(!b) return; UI.filter=b.dataset.f; renderList(); });
   $('#sort').addEventListener('change',e=>{ UI.sort=e.target.value; renderList(); });
   $('#viewT').addEventListener('click',()=>{ UI.view=UI.view==='grid'?'list':'grid'; renderInventory(); });
+  $('#list').addEventListener('click',onClosetTap);
   renderList();
 }
+// Closets: 'all' + the sites she uses + any site where an item already has a status.
+const closetKeys = () => ['all',...PKEYS.filter(k=>activeKeys().includes(k)||ITEMS.some(it=>siteState(it,k)!=='none'))];
+function setCloset(k){ if(!closetKeys().includes(k)) k='all'; const was=UI.closet; UI.closet=k; try{ localStorage.setItem('ctc-closet',k); }catch(e){}
+  if(was!==k){ if(k==='all'&&UI.filter==='none') UI.filter='unlisted'; else if(k!=='all'&&UI.filter==='unlisted') UI.filter='none'; } }
+// Filter tests. All closet: item-wide state. Site closet: that site's state ("Not posted" = not on this site and not sold anywhere).
+const CLOSET_FILTERS={
+  all:[['all','All',()=>true],['unlisted','Not posted',(it,x)=>x.unlisted],['listed','Listed',(it,x)=>x.listed&&!x.sold],['sold','Sold',(it,x)=>x.sold],['delist','\u26a0 Needs delisting',(it,x)=>x.needsDelist]],
+  site:[['all','All',()=>true],['none','Not posted',(it,x,s)=>s==='none'&&!x.sold],['listed','Listed',(it,x,s)=>s==='listed'],['sold','Sold',(it,x,s)=>s==='sold'],['delist','\u26a0 Delist here',(it,x,s)=>s==='listed'&&x.sold]],
+};
+function closetFilters(c){ return CLOSET_FILTERS[c==='all'?'all':'site']; }
+function closetCount(c,f){ const F=closetFilters(c).find(x=>x[0]===f); return F?ITEMS.filter(it=>F[2](it,st(it),c==='all'?null:siteState(it,c))).length:0; }
+const SORTS={new:(a,b)=>(b.createdAt||0)-(a.createdAt||0), old:(a,b)=>(a.createdAt||0)-(b.createdAt||0), phigh:(a,b)=>(b.price||0)-(a.price||0), plow:(a,b)=>(a.price||0)-(b.price||0),
+  az:(a,b)=>(buildTitle(a,80)||'').localeCompare(buildTitle(b,80)||'',undefined,{sensitivity:'base',numeric:true})||(a.sku||'').localeCompare(b.sku||'')};
+function closetList(c,f,q,sort){ const F=closetFilters(c).find(x=>x[0]===f)||closetFilters(c)[0]; q=(q||'').trim().toLowerCase();
+  return ITEMS.filter(it=>{ if(!F[2](it,st(it),c==='all'?null:siteState(it,c))) return false;
+    if(q){ const hay=[it.sku,it.brand,it.type,it.era,it.color,it.material,it.keywords,it.size,buildTitle(it)].join(' ').toLowerCase(); if(!q.split(/\s+/).every(w=>hay.includes(w))) return false; }
+    return true; }).sort(SORTS[sort]||SORTS.new); }
 function renderList(){
+  if(!closetKeys().includes(UI.closet)) setCloset('all');
+  const C=UI.closet, isAll=C==='all';
+  if(!closetFilters(C).some(x=>x[0]===UI.filter)) UI.filter='all';
   const s={total:ITEMS.length,listed:0,sold:0,rev:0,cost:0};
   ITEMS.forEach(it=>{ const x=st(it); if(x.sold){ s.sold++; s.rev+=soldPrice(it); s.cost+=(it.cost||0);} else if(x.listed) s.listed++; });
   // Profit = revenue of sold items minus what you paid for those sold items.
@@ -896,32 +971,53 @@ function renderList(){
     <div class="stat"><b>${ITEMS.length-s.sold}</b><span>In stock</span></div>`;
   const nd=ITEMS.filter(it=>st(it).needsDelist);
   $('#globalAlert').innerHTML = nd.length ? `<button class="alert" id="ndBtn"><span class="x">\u26a0</span><span>${nd.length} sold item${nd.length>1?'s are':' is'} still listed elsewhere<small>Tap to see what to remove</small></span></button>` : '';
-  if(nd.length) $('#ndBtn').onclick=()=>{ UI.filter='delist'; renderInventory(); };
-  const q=UI.q.trim().toLowerCase();
-  const list=ITEMS.filter(it=>{
-    const x=st(it);
-    if(UI.filter==='unlisted'&&!x.unlisted) return false;
-    if(UI.filter==='listed'&&!(x.listed&&!x.sold)) return false;
-    if(UI.filter==='sold'&&!x.sold) return false;
-    if(UI.filter==='delist'&&!x.needsDelist) return false;
-    if(q){ const hay=[it.sku,it.brand,it.type,it.era,it.color,it.material,it.keywords,it.size,buildTitle(it)].join(' ').toLowerCase(); if(!q.split(/\s+/).every(w=>hay.includes(w))) return false; }
-    return true;
-  });
-  const by={new:(a,b)=>b.createdAt-a.createdAt, old:(a,b)=>a.createdAt-b.createdAt, phigh:(a,b)=>(b.price||0)-(a.price||0), plow:(a,b)=>(a.price||0)-(b.price||0)};
-  list.sort(by[UI.sort]);
+  if(nd.length) $('#ndBtn').onclick=()=>{ setCloset('all'); UI.filter='delist'; renderList(); };
+  // closet tabs: All (items) and each site (items listed there)
+  $('#closets').innerHTML=closetKeys().map(k=>{ const n=k==='all'?ITEMS.length:ITEMS.filter(it=>siteState(it,k)==='listed').length;
+    const nm=k==='all'?'All':PLATFORMS[k].name, al=k==='all'?`All items, ${n}`:`${nm} closet, ${n} listed`;
+    return `<button type="button" role="tab" class="chip closet ${C===k?'on':''}" data-closet="${k}" aria-selected="${C===k}" aria-label="${esc(al)}">${esc(nm)}<span class="n">${n}</span></button>`; }).join('');
+  $('#filters').innerHTML=closetFilters(C).map(([k,l])=>`<button type="button" class="chip ${k==='delist'?'warn':''} ${UI.filter===k?'on':''}" data-f="${k}" aria-pressed="${UI.filter===k}">${l}<span class="n">${closetCount(C,k)}</span></button>`).join('');
+  $('#viewT').style.display=isAll?'':'none';   // site closets are always one card per row (big status buttons)
+  const list=closetList(C,UI.filter,UI.q,UI.sort);
   const el=$('#list');
   if(!ITEMS.length){ el.className='items'; el.innerHTML=`<div class="empty"><h2>Your rack is empty</h2><p>Tap the <b>+</b> button to photograph your first piece.</p><a class="btn primary" href="#/add">+ Add first item</a></div>`; return; }
-  el.className='items '+UI.view;
-  if(!list.length){ el.innerHTML=`<div class="empty" style="grid-column:1/-1">No items match.</div>`; return; }
+  el.className='items '+(isAll?UI.view:'closet');
+  if(!list.length){ el.innerHTML=`<div class="empty" style="grid-column:1/-1">No items match${isAll?'':` in your ${esc(PLATFORMS[C].name)} closet`}.</div>`; return; }
   el.innerHTML=list.map(it=>{
     const x=st(it), dl=delistTargets(it);
+    const thumb=`<div class="thumb">${it.thumb?`<img src="${it.thumb}" alt="" loading="lazy">`:'<span>no photo</span>'}</div>`;
+    if(!isAll){ const ss=siteState(it,C), dlh=ss==='listed'&&x.sold, cls=dlh?'delist':ss;
+      return `<div class="card ccard" data-id="${it.id}">
+      <a class="clink" href="#/item/${it.id}">${thumb}<div class="ci"><div class="sku">${esc(it.sku)}</div><div class="t">${esc(buildTitle(it,80)||'Untitled')}</div>
+        <div class="price">${money(x.sold?soldPrice(it):it.price)}</div><span class="cstate ${cls}">${dlh?'\u26a0 Sold elsewhere \u2014 delist':esc(STATUS_LABEL[ss])}${ss==='none'&&x.sold?' \u00b7 sold elsewhere':''}</span></div></a>
+      <div class="cseg" role="group" aria-label="${esc(it.sku)} on ${esc(PLATFORMS[C].name)}">${['none','listed','sold'].map(k=>`<button type="button" data-cs="${k}" class="${ss===k?'on':''}" aria-pressed="${ss===k}">${STATUS_LABEL[k]}</button>`).join('')}</div></div>`; }
     return `<a class="card" href="#/item/${it.id}">
       ${x.needsDelist?`<span class="ribbon">DELIST \u00d7${dl.length}</span>`:x.sold?`<span class="ribbon sold">SOLD</span>`:''}
-      <div class="thumb">${it.thumb?`<img src="${it.thumb}" alt="" loading="lazy">`:'<span>no photo</span>'}</div>
+      ${thumb}
       <div class="ci"><div class="sku">${esc(it.sku)}</div><div class="t">${esc(buildTitle(it,80)||'Untitled')}</div>
       <div class="price">${money(x.sold?soldPrice(it):it.price)}</div>
-      <div class="pchips">${shownKeys(it).map(k=>{ const s=it.status?.[k]?.state||'none'; const cls= s==='listed'&&x.sold?'delist':s; return `<span class="pc ${cls}" title="${PLATFORMS[k].name}: ${s}">${PLATFORMS[k].short}${s==='sold'?' \u2713':''}</span>`; }).join('')}</div></div></a>`;
+      <div class="pchips">${shownKeys(it).map(k=>{ const s=it.status?.[k]?.state||'none'; const cls= s==='listed'&&x.sold?'delist':s; return `<span class="pc ${cls}" title="${PLATFORMS[k].name}: ${STATUS_LABEL[s]||s}">${PLATFORMS[k].short}${s==='sold'?' \u2713':''}</span>`; }).join('')}</div></div></a>`;
   }).join('');
+}
+// One tap on a card's Not posted / Listed / Sold in a site closet.
+async function onClosetTap(e){
+  const b=e.target.closest('[data-cs]'); if(!b) return; const card=b.closest('[data-id]'), C=UI.closet; if(!card||C==='all') return;
+  const it=ITEMS.find(i=>i.id===card.dataset.id), s=b.dataset.cs; if(!it) return;
+  if(siteState(it,C)===s){ toast(`${PLATFORMS[C].name}: already ${STATUS_LABEL[s]}`); return; }
+  await setSiteStatus(it,C,s); const fresh=ITEMS.find(i=>i.id===it.id)||it;
+  renderList(); toast(`${fresh.sku} \u00b7 ${PLATFORMS[C].name}: ${STATUS_LABEL[s]}`);
+  if(s==='sold'&&delistTargets(fresh).length) showDelistSheet(fresh.id);
+}
+function showDelistSheet(id){
+  document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const sh=document.createElement('div'); sh.className='sheet'; sh.id='delistSheet'; sh.setAttribute('role','dialog'); sh.setAttribute('aria-modal','true'); sh.setAttribute('aria-label','Sold! Delist it here');
+  const paint=()=>{ const it=ITEMS.find(i=>i.id===id); if(!it){ sh.remove(); return; } const h=delistHTML(it,'delistSheetList');
+    sh.innerHTML=`<div class="sheet-in">${h||`<div class="gs" style="font-size:var(--fs-body);color:#35502f;font-weight:700">\u2713 All clear: ${esc(it.sku)} is no longer listed anywhere else.</div>`}<button type="button" class="btn primary block" id="dsDone" style="margin-top:10px">Done</button></div>`; };
+  paint(); document.body.appendChild(sh);
+  sh.addEventListener('click',async e=>{ const r=e.target.closest('[data-rmv]');
+    if(r){ const it=ITEMS.find(i=>i.id===id); await setSiteStatus(it,r.dataset.rmv,'none'); toast(`Removed from ${PLATFORMS[r.dataset.rmv].name}`); paint(); if($('#list')) renderList(); return; }
+    if(e.target.id==='dsDone'||e.target===sh) sh.remove(); });
+  const d=$('#dsDone',sh); if(d) try{ d.focus({preventScroll:true}); }catch(_){}
 }
 
 /* ---------- Add / Edit form ---------- */
@@ -996,7 +1092,7 @@ async function saveForm(e){
   const btn=$('#saveBtn'); btn.disabled=true; btn.textContent='Saving\u2026';
   try{
     const fd=new FormData(e.target), g=k=>(fd.get(k)||'').toString().trim();
-    const it=EDIT.item ? {...EDIT.item} : {id:uid(), createdAt:Date.now(), status:defaultStatus(), custom:{}, comps:{}};
+    const it=EDIT.item ? {...EDIT.item} : {id:uid(), createdAt:Date.now(), status:defaultStatus(), custom:{}, comps:{}, schema:ITEM_SCHEMA};
     Object.assign(it,{brand:g('brand'),type:g('type'),era:g('era'),size:g('size'),color:g('color'),material:g('material'),keywords:g('keywords'),
       pit:g('pit'),length:g('length'),waist:g('waist'),inseam:g('inseam'),condition:g('condition'),flaws:g('flaws'),
       cost:num(g('cost')),price:num(g('price')),updatedAt:Date.now()});
@@ -1060,7 +1156,7 @@ function pcardHTML(p,it){
   const warn=p==='etsy'?etsyVintageWarning(it):'';
   return `<section class="pcard" data-p="${p}" style="--pc:${P.color}">
     <div class="hd"><div><h3>${P.name}</h3><span class="mode ${bot?'bot':'you'}" title="${esc(M.label)}">${bot?'\u2699 ':'\u261d '}${esc(M.label)}</span></div>
-      <div class="seg" role="group" aria-label="${P.name} status">${[['none','Not listed'],['listed','Listed'],['sold','Sold']].map(([k,l])=>`<button type="button" data-s="${k}">${l}</button>`).join('')}</div></div>
+      <div class="seg" role="group" aria-label="${P.name} status">${[['none','Not posted'],['listed','Listed'],['sold','Sold']].map(([k,l])=>`<button type="button" data-s="${k}">${l}</button>`).join('')}</div></div>
     ${P.modeNote?`<p class="hint" style="margin:6px 0 0">${esc(P.modeNote)}</p>`:''}
     ${warn?`<div class="gs err" style="margin-top:8px">\u26a0 ${esc(warn)}</div>`:''}
     ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
@@ -1115,10 +1211,10 @@ function showChecklist(p,copied,photoMode,opened,needOpen){
     <div class="pbtns">${isD?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${isD?'':'primary'}" data-cl="d">Copy description</button>
     ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a>
     ${n?`<button class="btn sm" data-cl="save">\u2b07 Save photos again</button><button class="btn sm ghost" data-cl="share">\u2934 Share photos\u2026</button>`:''}</div>
-    <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed</button>`;
+    <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed on ${esc(P.name)}</button>`;
   $('.openSite',el).addEventListener('click',()=>{ try{ localStorage.setItem(DL_OK_KEY,'1'); }catch(e){} });
   el.querySelectorAll('[data-cl]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.cl;
-    if(k==='done'){ await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
+    if(k==='done'){ clearPostAsk(); await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
     if(k==='share'){ sharePhotos(); return; }
     if(k==='save'){ if(IS_IOS) sharePhotos(); else { downloadPhotos(); toast(`Saving ${n} photo${n===1?'':'s'} to Downloads`); } return; }
     const L2=cardListing(p); const ok=await copyText(k==='t'?L2.title:k==='d'?L2.desc:L2.tags||''); if(ok) cfMark(p,k==='t'?'title':k==='d'?'description':'tags'); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'tags'}`:'Copy blocked'); });
@@ -1155,7 +1251,19 @@ async function postFlow(p){
   showChecklist(p,ok,files.length?'saved':'none',opened,needOpen); cfAfterPost(p,ok);
 }
 // After "Post to <site>": mark the field it copied and open the per-field Copy panel for the rest.
-function cfAfterPost(p,ok){ if(ok) cfMark(p,p==='depop'?'description':'title'); const d=$(`.pcard[data-p="${p}"] details.cf`); if(d){ d.open=true; cfPaint(p); } }
+// After Post to <site>, when she comes back to the app, offer (never auto-mark) "Posted it? Mark Listed".
+let POST_ASK=null;
+function clearPostAsk(){ POST_ASK=null; const a=document.getElementById('postAsk'); if(a) a.remove(); }
+function armPostAsk(p){ if(!DETAIL||!DETAIL.item||siteState(DETAIL.item,p)!=='none') return; POST_ASK={id:DETAIL.item.id,p,at:Date.now(),away:false}; }
+function showPostAsk(){ const A=POST_ASK; if(!A||!DETAIL||!DETAIL.item||DETAIL.item.id!==A.id||siteState(DETAIL.item,A.p)!=='none'||document.getElementById('postAsk')) return;
+  const P=PLATFORMS[A.p], d=document.createElement('div'); d.className='postask'; d.id='postAsk'; d.setAttribute('role','dialog'); d.setAttribute('aria-label',`Posted on ${P.name}?`);
+  d.innerHTML=`<span>Did you post it on <b>${esc(P.name)}</b>?</span><button type="button" class="btn sm primary" id="paYes">\u2713 Yes, mark Listed</button><button type="button" class="btn sm" id="paNo">Not yet</button>`;
+  document.body.appendChild(d);
+  $('#paYes',d).onclick=async()=>{ const p=A.p; clearPostAsk(); await setStatus(p,'listed'); const c=$(`.pcard[data-p="${p}"] .checklist`); if(c) c.hidden=true; };
+  $('#paNo',d).onclick=()=>clearPostAsk(); }
+document.addEventListener('visibilitychange',()=>{ if(!POST_ASK) return; if(document.visibilityState==='hidden') POST_ASK.away=true; else if(POST_ASK.away&&Date.now()-POST_ASK.at<60*60*1000) showPostAsk(); });
+window.addEventListener('hashchange',()=>clearPostAsk());
+function cfAfterPost(p,ok){ armPostAsk(p); if(ok) cfMark(p,p==='depop'?'description':'title'); const d=$(`.pcard[data-p="${p}"] details.cf`); if(d){ d.open=true; cfPaint(p); } }
 function copySync(text){
   const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';
   document.body.appendChild(ta); ta.focus(); ta.select(); try{ ta.setSelectionRange(0,text.length); }catch(e){}
@@ -1195,21 +1303,17 @@ function bindPcard(p){
   url.addEventListener('input',()=>{ it.status[p].url=url.value.trim(); showLnk(); clearTimeout(url._t); url._t=setTimeout(()=>putItem(it),400); });
 }
 async function setStatus(p,s){
-  const it=DETAIL.item; it.status[p]={...(it.status[p]||{}),state:s};
-  if(s==='sold'){ if(it.soldPrice==null) it.soldPrice=it.price||0; it.soldAt=it.soldAt||Date.now(); }
-  if(!st(it).sold){ delete it.soldPrice; delete it.soldAt; }
-  it.updatedAt=Date.now(); await putItem(it); await refresh();
-  updateStatusUI();
-  toast(`${PLATFORMS[p].name}: ${s==='none'?'not listed':s}`);
+  const it=DETAIL.item; await setSiteStatus(it,p,s);
+  updateStatusUI(); if(POST_ASK&&POST_ASK.id===it.id&&POST_ASK.p===p) clearPostAsk();
+  toast(`${PLATFORMS[p].name}: ${STATUS_LABEL[s]}`);
+  if(s==='sold'&&delistTargets(it).length){ const b=$('#delistBanner'); if(b) b.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
 function updateStatusUI(){
   const it=DETAIL.item, x=st(it), dl=delistTargets(it), so=soldOn(it);
   shownKeys(it).forEach(p=>{ const el=$(`.pcard[data-p="${p}"]`), s=it.status[p]?.state||'none'; if(!el) return;
     el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
     el.classList.toggle('is-delist',x.sold&&s==='listed'); });
-  $('#delist').innerHTML = dl.length ? `<div class="alert" role="alert" id="delistBanner"><span class="x">\u26a0</span><span>Sold on ${so.map(k=>PLATFORMS[k].name).join(', ')} \u2014 Remove from: ${dl.map(k=>PLATFORMS[k].name).join(', ')}
-    <small>Delist now so it can't sell twice, then tap \u201cRemoved\u201d for each:</small>
-    <span class="sbtns">${dl.map(k=>`<button class="btn sm" data-rmv="${k}">\u2713 Removed from ${PLATFORMS[k].name}</button>`).join('')}</span></span></div>` : '';
+  $('#delist').innerHTML = dl.length ? delistHTML(it,'delistBanner') : '';
   $$('#delist [data-rmv]').forEach(b=>b.onclick=()=>setStatus(b.dataset.rmv,'none'));
   $('#soldBox').innerHTML = x.sold ? `<label class="row" style="font-size:var(--fs-sec);color:var(--muted);font-weight:600">Sold for $<input id="soldP" class="sel" inputmode="decimal" style="width:90px" value="${esc(it.soldPrice??'')}"></label>` : '';
   if(x.sold) $('#soldP').addEventListener('input',e=>{ it.soldPrice=num(e.target.value)??0; clearTimeout(e.target._t); e.target._t=setTimeout(async()=>{ await putItem(it); await refresh(); },400); });
@@ -1554,7 +1658,7 @@ async function restoreFromDrive({confirmFn=confirm}={}){
         await reqP(os('photos','readwrite').put(rec)); keepIds.add(rec.id); if(!cover) cover=rec;
       }
       for(const p of existing) if(!keepIds.has(p.id)) await delPhoto(p.id);
-      const it={...r,id:targetId,status:{...defaultStatus(),...(r.status||{})},photoCount:keepIds.size};
+      const it=migrateItem({...r,id:targetId,photoCount:keepIds.size});
       it.thumb=cover?await makeThumb(photoBlob(cover)):'';
       await reqP(os('items','readwrite').put(it)); delete tomb[targetId];
     }
@@ -1688,7 +1792,7 @@ async function importJSON(e){
     if(!d||!Array.isArray(d.items)) throw new Error('Not a backup file');
     if(!confirm(`Import ${d.items.length} items and ${(d.photos||[]).length} photos into this device?`)) return;
     const tb=(await getMeta('tombstones'))||{}; for(const it of d.items){ if(it.id) delete tb[it.id]; } await setMeta('tombstones',tb);
-    for(const it of d.items){ if(!it.id) continue; it.status={...defaultStatus(),...(it.status||{})}; if(it.comps) try{ it.comps=normalizeComps(it.comps); }catch(_){ it.comps={}; } await putItem(it); }
+    for(const it of d.items){ if(!it.id) continue; migrateItem(it); if(it.comps) try{ it.comps=normalizeComps(it.comps); }catch(_){ it.comps={}; } await putItem(it); }
     for(const p of (d.photos||[])){ if(!p.id||!p.data) continue; const {buf,type}=dataURLToBuf(p.data); await putPhoto({id:p.id,itemId:p.itemId,idx:p.idx||0,type,buf}); }
     let maxN=d.skuCounter||0; d.items.forEach(it=>{ const m=String(it.sku||'').match(/(\d+)$/); if(m) maxN=Math.max(maxN,+m[1]); });
     if(maxN>((await getMeta('sku'))||0)) await setMeta('sku',maxN);
@@ -1716,6 +1820,12 @@ function addTouchIcon(){
   }catch(e){}
 }
 
+/* HH-Closets migration: once per device, bring every stored item to schema 2 (status for every site, legacy states mapped).
+   updatedAt is NOT bumped, so a Drive copy never loses to a migration-only change; restore/import migrate on the way in. */
+async function migrateAll(){ let n=0;
+  for(const it of ITEMS){ if((it.schema||0)>=ITEM_SCHEMA) continue; migrateItem(it); await reqP(os('items','readwrite').put(it)); n++; }
+  if(n){ await refresh(); try{ await setMeta('migratedSchema2',{at:Date.now(),items:n}); }catch(e){} }
+  return n; }
 /* ---------- boot ---------- */
 (async function init(){
   document.title=APP_NAME;
@@ -1726,7 +1836,7 @@ function addTouchIcon(){
     const l=document.createElement('link'); l.rel='manifest'; l.href='manifest.webmanifest'; document.head.appendChild(l);
     if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(e=>console.warn('SW registration failed',e)));
   }
-  try{ db=await openDB(); await refresh(); }
+  try{ db=await openDB(); await refresh(); await migrateAll(); }
   catch(err){ $('#app').innerHTML=`<div class="empty"><h2>Storage unavailable</h2><p>${esc(err.message)}. Private browsing or some file previewers block storage \u2014 open this page in Safari/Chrome normally.</p></div>`; return; }
   Auth.load();
   try{ SYNC.last=(await getMeta('lastBackup'))||null; }catch(e){}
