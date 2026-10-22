@@ -245,6 +245,21 @@ details.cf>summary{min-height:var(--tap-min);display:flex;align-items:center;jus
 .cfrow .btn.just{background:#35502f;border-color:#35502f;color:#fff}
 .cfrow .man{grid-column:1/-1;width:100%;min-height:var(--tap-min);font:var(--fs-body)/1.35 var(--sans);border:2px solid var(--mustard);border-radius:10px;padding:6px 8px;background:#fff;color:var(--ink)}
 .cfnote{font-size:var(--fs-sec);color:var(--muted);margin:6px 0}
+/* HH-CopyAll: one tap copies every box you type into, in the site's form order, as separate clips for the keyboard's clipboard history */
+.cabtn{margin-top:10px;min-height:calc(var(--tap) + 8px);font-size:1.125rem;font-weight:700;border:2px solid var(--pc,var(--deep));color:var(--deep);background:#fff}
+.cabtn[disabled]{opacity:.7}
+.caguide{margin-top:10px;background:#fff;border:2px solid var(--pc,var(--deep));border-radius:var(--radius);padding:12px 14px;font-size:var(--fs-body);line-height:1.4;color:var(--ink)}
+.caguide[hidden]{display:none}
+.caguide .castat{margin:0 0 6px;font-size:1.125rem;font-weight:700;color:#35502f}
+.caguide .castat.warn{color:var(--red)}
+.caguide .cahead{margin:4px 0 8px;font:700 1.25rem/1.3 var(--serif);color:var(--deep)}
+.caguide ol,.caguide ul{margin:6px 0 10px;padding-left:24px}.caguide li{margin:6px 0}
+.caclips li{padding:6px 8px;border:1px dashed var(--line);border-radius:10px;list-style-position:outside}
+.caclips li.done{background:var(--sage-bg)}
+.caclips li b{display:block;font-size:var(--fs-label);color:var(--muted)}
+.caclips li .v{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.caguide .pbtns{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+.caguide .canote{font-size:var(--fs-sec);color:var(--muted);margin:8px 0 0}
 .sites label{display:flex;align-items:center;gap:10px;min-height:var(--tap-min);font-size:var(--fs-body)}.sites input{width:22px;height:22px}
 .top h1 .about-i{display:inline-flex;align-items:center;justify-content:center;vertical-align:super;margin-left:6px;width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);font:italic 700 1rem/1 var(--serif);cursor:pointer;position:relative}
 .top h1 .about-i::after{content:'';position:absolute;inset:-8px}
@@ -846,7 +861,9 @@ const SELL_FORM={
   poshmark:{order:['title','description','category','size','condition','brand','color','tags','price'], tags:{max:3,len:30},
             label:{tags:'Style tags (up to 3)',price:'Listing price',condition:'Condition / New With Tags'},
             cond:{nwt:'New With Tags',excellent:'Like New',verygood:'Good',good:'Good',fair:'Fair'}},
-  mercari: {order:['title','description','category','brand','condition','size','color','tags','price'], tags:{max:3,len:30},
+  // Mercari: tags + color dropped 2026-10-22 (Vendoo's April 2026 update says Mercari removed both from its listing form).
+  // UNVERIFIED on the live Mercari form; put them back here if she still sees those boxes.
+  mercari: {order:['title','description','category','brand','condition','size','price'],
             cond:{nwt:'New',excellent:'Like New',verygood:'Good',good:'Good',fair:'Fair'}},
   vinted:  {order:['title','description','category','brand','size','condition','color','price'],
             cond:{nwt:'New with tags',excellent:'Very good',verygood:'Very good',good:'Good',fair:'Satisfactory'}},
@@ -943,6 +960,72 @@ async function cfCopy(p,f,btn){
 function bindCF(p){ const d=$(`.pcard[data-p="${p}"] details.cf`); if(!d) return; cfPaint(p);
   d.addEventListener('click',e=>{ const b=e.target.closest('[data-cf]'); if(b){ cfCopy(p,b.dataset.cf,b); return; }
     if(e.target.closest('[data-cfreset]')){ cfSet(DETAIL.item.id,p,[]); cfPaint(p); toast('Copied marks cleared'); } }); }
+/* ===================== HH-CopyAll (2026-10-22): "Copy all for <site>" =====================
+   Poshmark, Mercari and Vinted only (no listing API; you publish). One tap copies every box you TYPE into, in the site's own
+   form order (SELL_FORM via cfFields, already cleaned and cut to length), as separate clipboard writes with a short pause
+   between them so each one lands as its own clip in Samsung Keyboard / Gboard clipboard history. Menus (category, size,
+   condition, color) are not copied: the guide lists them to pick. Nothing is sent anywhere and nothing is posted.
+   UNVERIFIED on a real phone: that every write shows up as its own clip (keyboards may merge fast writes; 700 ms gap is a guess).
+   Unit-tested in /workspace/vltest/copyall-test.js. */
+const CA_SITES=['poshmark','mercari','vinted'];
+const CA_TYPED=['title','description','brand','tags','price'];   // boxes you type into on these sites
+const CA_GAP_MS=700;
+let CA_BUSY=null;
+const caSleep=ms=>new Promise(r=>setTimeout(r,ms));
+function caPlan(p,it,L){ const rows=cfFields(p,it,L);
+  return {clips:rows.filter(r=>CA_TYPED.includes(r.f)&&r.value), pick:rows.filter(r=>!CA_TYPED.includes(r.f)&&r.value)}; }
+function caHTML(p){ if(!CA_SITES.includes(p)) return ''; const P=PLATFORMS[p];
+  return `<button class="btn block cabtn" type="button" data-copyall aria-controls="ca-${p}">\ud83d\udccb Copy all for ${esc(P.name)}</button>
+    <div class="caguide" id="ca-${p}" hidden aria-live="polite"></div>`; }
+function caPaint(p,plan,done,state,msg){
+  const P=PLATFORMS[p], g=$(`#ca-${p}`); if(!g) return; const n=plan.clips.length, nm=esc(P.name), files=(DETAIL&&DETAIL.files)||[];
+  const head= state==='busy' ? `<p class="castat">\u23f3 ${esc(msg)}</p><p>Please stay on this screen until it says <b>Done</b>.</p>`
+    : state==='done' ? `<p class="castat">\u2713 Done: ${n} ${n===1?'box':'boxes'} copied for ${nm}</p>
+        <p class="cahead">Now open ${nm}, tap a box, tap your keyboard\u2019s clipboard icon \ud83d\udccb, then tap the matching clip.</p>`
+    : state==='away' ? `<p class="castat warn">Stopped after ${done.length} of ${n}: you left this screen while it was copying. Tap <b>Copy all again</b> and wait for <b>Done</b>.</p>`
+    : `<p class="castat warn">Your phone stopped the copying after ${done.length} of ${n}. Use the <b>Copy</b> buttons under <b>Copy fields one by one</b> below.</p>`;
+  const clips=`<ol class="caclips">${plan.clips.map(r=>`<li class="${done.includes(r.f)?'done':''}" data-caf="${r.f}"><b>${esc(r.label)}${done.includes(r.f)?' \u2713':''}</b><span class="v">${esc(r.value)}</span></li>`).join('')}</ol>`;
+  const steps= state==='busy' ? '' : `<ol class="casteps">
+      <li>Tap <b>Open ${nm}</b> and start a new listing.</li>
+      <li>Tap a box, like <b>Title</b>.</li>
+      <li>On your keyboard, tap the <b>clipboard icon</b> \ud83d\udccb (Samsung Keyboard and Gboard: in the row above the letters; if you don\u2019t see it, tap the <b>\u2026</b> or <b>\u2630</b> button there).</li>
+      <li>Tap the clip that matches the box. Your newest clip is shown first.</li>
+      <li>Do the same for each box in this list.</li></ol>`;
+  const pick= state==='busy'||!plan.pick.length ? '' : `<p><b>Pick these from ${nm}\u2019s menus:</b></p><ul class="capick">${plan.pick.map(r=>`<li>${esc(r.label)}: <b>${esc(r.value)}</b></li>`).join('')}</ul>`;
+  const photos= state==='busy'||!files.length ? '' : `<p>Photos: tap <b>Save photos</b>, then add them in ${nm} from your Gallery (Download folder).</p>`;
+  const top= state==='busy' ? '' : `<div class="pbtns"><a class="btn primary" href="${P.create}" target="_blank" rel="noopener" data-caopen>Open ${nm} \u2197</a>
+      ${files.length?'<button class="btn" type="button" data-casave>\u2b07 Save photos</button>':''}</div>`;
+  const again= state==='busy' ? '' : `<div class="pbtns"><button class="btn ghost" type="button" data-caagain>\ud83d\udccb Copy all again</button></div>
+      <p class="canote">Clips usually stay on the keyboard for about an hour. No clipboard icon? Use <b>Copy fields one by one</b> below.</p>`;
+  g.hidden=false; g.innerHTML=head+top+clips+steps+pick+photos+again;
+}
+async function copyAll(p){
+  if(CA_BUSY||!DETAIL||!DETAIL.item) return;
+  const P=PLATFORMS[p], plan=caPlan(p,DETAIL.item,cfCardRaw(p)), el=$(`.pcard[data-p="${p}"]`), btn=$('[data-copyall]',el);
+  if(!plan.clips.length){ toast('Nothing to copy yet \u2014 add a title with Edit'); return; }
+  CA_BUSY=p; if(btn) btn.disabled=true; const done=[]; let stop='';
+  const away=()=>{ if(document.visibilityState==='hidden') stop=stop||'away'; }; document.addEventListener('visibilitychange',away);
+  try{
+    for(let i=0;i<plan.clips.length;i++){
+      const r=plan.clips[i];
+      if(i>0) await caSleep(CA_GAP_MS);            // the first write happens straight away, inside your tap
+      if(stop) break;
+      caPaint(p,plan,done,'busy',`Copying ${i+1} of ${plan.clips.length}: ${r.label}\u2026`);
+      const how=await copyOut(r.value); if(!how){ stop='blocked'; break; }
+      done.push(r.f); cfMark(p,r.f);
+    }
+  } finally { document.removeEventListener('visibilitychange',away); CA_BUSY=null; if(btn) btn.disabled=false; }
+  if(done.length===plan.clips.length) stop='';
+  caPaint(p,plan,done,stop||'done');
+  if(!stop) toast(`Copied ${done.length} boxes for ${P.name} \u2014 now open ${P.name}`);
+  else { const d=$('details.cf',el); if(d){ d.open=true; cfPaint(p); } }
+  return {done:done.slice(),stop};
+}
+function bindCA(p){ const el=$(`.pcard[data-p="${p}"]`); if(!el||!$('[data-copyall]',el)) return;
+  el.addEventListener('click',e=>{ const t=e.target.closest('[data-copyall],[data-caagain],[data-caopen],[data-casave]'); if(!t||!el.contains(t)) return;
+    if(t.matches('[data-copyall],[data-caagain]')){ copyAll(p); return; }
+    if(t.matches('[data-caopen]')){ armPostAsk(p); return; }
+    if(t.matches('[data-casave]')){ if(IS_IOS) sharePhotos(); else { downloadPhotos(); toast(`Saving ${DETAIL.files.length} photo${DETAIL.files.length===1?'':'s'} to Downloads`); } } }); }
 function downloadBlob(blob,name){
   const u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=name; a.rel='noopener';
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },8000);
@@ -1491,6 +1574,7 @@ function pcardHTML(p,it){
     ${warn?`<div class="gs err" style="margin-top:8px">\u26a0 ${esc(warn)}</div>`:''}
     ${bot?`<div class="pbtns" style="grid-template-columns:1fr 1fr"><button class="btn sm ${s.botQueued?'primary':''} qbot" type="button">${s.botQueued?'\u2713 Queued for bot':'\u2699 Queue for bot'}</button><button class="btn sm post" type="button">Post it myself</button></div>`
          :`<button class="btn primary block post" type="button" style="margin-top:10px">\u261d Post to ${P.name}</button>`}
+    ${caHTML(p)}
     <div class="pbtns qcopy" style="grid-template-columns:1fr 1fr">${p==='depop'?'':'<button class="btn sm" type="button" data-copy="t">Copy title</button>'}<button class="btn sm" type="button" data-copy="d" ${p==='depop'?'style="grid-column:1/-1"':''}>Copy description</button></div>
     <div class="checklist" hidden></div>
     ${cfHTML(p)}
@@ -1615,7 +1699,7 @@ function bindPcard(p){
   counts();
   let t; const saveCustom=()=>{ clearTimeout(t); t=setTimeout(async()=>{ const g=generate(p,it), c={}; if(ti.value!==g.title) c.title=ti.value; if(de.value!==g.desc) c.desc=de.value; if(tg&&tg.value!==g.tags) c.tags=tg.value; it.custom[p]=c; await putItem(it); },400); };
   [ti,de,tg].filter(Boolean).forEach(x=>x.addEventListener('input',()=>{counts();saveCustom();cfPaint(p);}));
-  bindCF(p);
+  bindCF(p); bindCA(p);
   $('.regen',el).onclick=async()=>{ delete it.custom[p]; const g=generate(p,it); ti.value=g.title; de.value=g.desc; if(tg) tg.value=g.tags||''; counts(); cfPaint(p); await putItem(it); toast('Regenerated'); };
   el.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
     const k=b.dataset.copy, L=cardListing(p), txt=k==='t'?L.title:k==='d'?L.desc:L.tags;
