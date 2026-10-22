@@ -2,7 +2,7 @@
 
 # HangHustle Manual
 
-The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 10:35 PM CT**.
+The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 11:50 PM CT**.
 
 - Master copy: `/workspace/shared-library/manuals/HangHustle-Manual.md` (Grok's box, shared by all of Michael's bots)
 - Repo copy: [`HANGHUSTLE-MANUAL.md`](https://github.com/bottledhatecom-cmd/closet-to-cash/blob/main/HANGHUSTLE-MANUAL.md)
@@ -95,6 +95,9 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | ~10:29 PM | **Draft with AI built and tested on a branch (commit d2a0855, sw `ctc-v13`).** Sign in with Google (ID token, kept in memory only) + **Draft with AI ✨ [Plus]** button on the add/edit form: sends the first 4 photos (each resized to ≤768 px, ≤290 KB) plus what she typed, fills **only empty boxes** (yellow highlight), offers a price guess without filling it, shows tap-to-answer question cards and "N of 300 drafts left this month"; plain-word messages for sign-in again / Plus only / monthly cap / busy / offline. New "Title & description (AI draft)" box used by every site's listing. privacy.html: new "AI drafts" section (photos she picks go to Google Gemini through the Hanger Hustle AI server; not stored by Hanger Hustle). Tests: new aidraft-test.js 92/92 + all harnesses. |
 | 10:31 PM | **Approved: deploy the Draft with AI button now** (that deploy only; AI server settings, DNS, landing site and Play not included). |
 | ~10:35 PM | **Draft with AI deployed to the live app (sw `ctc-v13`, app commit d2a0855 + this docs commit).** Fast-forward push to main after a secrets scan; GitHub Pages serves it at https://app.hangerhustle.com/. Until the AI server's allowlist is set, every draft shows the Plus message (no Gemini calls, no cost). Not yet tried on her real phone. Undo: `git revert` the app commit and bump sw to `ctc-v14`. |
+| ~10:50 PM | **"You" wording live (sw `ctc-v14`, commit 6791e98).** The app talks to her as "you" (e.g. "You publish (pre-filled)", "your shop"). New wording-test.js. |
+| ~11:09 PM | **Site notes no longer name anyone (sw `ctc-v15`, commit 6dc09fa).** eBay/Etsy notes say "once your eBay account / Etsy shop is connected". |
+| ~11:50 PM | **Bigger app on a folding phone's unfolded screen (sw `ctc-v16`, commit 374ebe7).** On her foldable's inner screen the app used the wide layout (5 small stat boxes, 3 small card columns) and looked tiny. Now at 560 px and wider everything is about 25% bigger (text 16 → 20 px, buttons 48 → 60 px tall, small buttons 44 → 56 px, bigger nav, + button, card photos and item photos), cards stay 2 columns and stats 3 per row up to 959 px (3 columns / 6 stats in a row from 960 px). The folded phone screen is unchanged. New foldsize-test.js (passes on live). Undo: `git revert 374ebe7` and bump sw to `ctc-v17`. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
