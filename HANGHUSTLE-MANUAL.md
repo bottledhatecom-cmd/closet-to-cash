@@ -70,6 +70,8 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | 6:44 PM | **Michael: Google sign-in must always let her pick the account** (for people with several Gmail accounts). |
 | ~6:50 PM | **Account chooser + Switch account (sw `ctc-v6`):** every sign-in she taps opens Google's account chooser (plus the consent screen only the first time on a device, or if she unticked Drive access). Quiet token renewals stay on the account she already picked, and if Google ever answers with a different account the app refuses it and stays on hers, never switching on its own. Settings shows **"Signed in as <email>"** in large type and a new **Switch account** button: it first warns that each Google account has its own backup and that her items stay on the phone (and that they'll also back up to the new account), then opens the chooser. Closing the chooser keeps her on the old account. |
 | 7:07 PM | **Landing page live at https://hangerhustle.com** (go-live approved 6:46 PM, no preview). www.hangerhustle.com redirects to the apex. Repo **`bottledhatecom-cmd/hangerhustle-site`** (public; plain `index.html` + `style.css` + optimized images, GitHub Pages from `main` root, `CNAME` = `hangerhustle.com`, `.nojekyll`). Sections: hero with "Open the app" + "Android download", features, how it works (3 steps), supported sites, coming soon (eBay/Etsy direct posting, AI-drafted descriptions, Google Play), FAQ (APK + iPhone install), footer with privacy/terms, non-affiliation line, "© 2026 Hanger Hustle". Android download = release **v1.0.1** asset `HangerHustle-1.0.1.apk` (1.0.1 build 2, 1,054,482 bytes, Android 7.0+): https://github.com/bottledhatecom-cmd/hangerhustle-site/releases/download/v1.0.1/HangerHustle-1.0.1.apk. **DNS at ChangeIP:** apex A ×4 → 185.199.108.153 / .109 / .110 / .111; `www` CNAME → `bottledhatecom-cmd.github.io`; `app` CNAME → `bottledhatecom-cmd.github.io`. HTTPS: certificate request had to be nudged again (remove + re-add custom domain, ~6:55 PM); Let's Encrypt cert for hangerhustle.com + www (expires 2027-01-19), **Enforce HTTPS on 7:06 PM**. **Rule: the page grows as the app grows**: only list features that exist, keep planned ones under "Coming soon", update the APK link/version/size with each Android release. |
+| 7:15 PM | **Field bug (her Samsung Android, Chrome):** tapping "Post to Poshmark" (and every she-publishes site) opened Android's generic share sheet ("3 images": contacts, Messages, WhatsApp, Gmail, Facebook…). Poshmark wasn't in it, so she was stuck. |
+| ~7:30 PM | **Fix: one-tap Post to <site> without the share sheet (sw `ctc-v7`).** One tap now (1) saves the item's photos to the phone as separate files, metadata stripped (EXIF/GPS removed, no re-encode) and numbered `HH-V-0001-1.jpg`, `-2`…, using staggered downloads; (2) copies the title as clean plain text (same sanitizer + per-site limits; Depop copies the description); (3) opens the site's sell page in a new tab (on Android the https link opens the marketplace app if it's installed); (4) shows a step card: "Photos saved to your Gallery/Downloads, title copied. In Poshmark: add photos from Downloads, paste title, then tap Copy description." Copy title / Copy description stay. **Share photos…** is now a secondary button (card + gallery). **First time on an Android phone only:** Chrome may ask **"Download multiple files?"**: tap **Allow** once, then tap **Open <site>** on the card; after that it's one tap. If she tapped Block by mistake: Chrome ⋮ → Settings → Site settings → Automatic downloads → allow app.hangerhustle.com. **iPhone:** Safari can't save many files at once, so the photo step stays the share sheet (tap **Save Images**), then she taps **Open <site>** on the card. eBay's link changed to the real "List an item" page (`/sl/prelist/suggest`). No intent:// links (the https links already hand off to the apps). Tests: new `post-test.js` (mocked downloads, window.open and share) + all old harnesses pass. Not yet checked on her real phone. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
@@ -134,6 +136,19 @@ Sources: underpricedai.com/blog/best-cross-listing-apps, vylist.ai/crosslisting-
 
 Sources: grailed.com/about/terms; facebook.com/legal/automated_data_collection_terms; developers.whatnot.com; Vestiaire Help Center "Professional seller: Listing Solutions"; help.etsy.com "How to Use Etsy's API"; developers.etsy.com; eBay developer docs.
 
+### Sell-page links (checked 2026-10-21 ~7:20 PM CT, signed out, Android Chrome user agent)
+What "Post to <site>" opens. A redirect to log in is expected when signed out; signed in (or in the app) they land on the listing form.
+| Site | Link | Check |
+|---|---|---|
+| Poshmark | https://poshmark.com/create-listing | 302 → login?pmrd[url]=/create-listing (keeps the target) |
+| Mercari | https://www.mercari.com/sell/ | curl 403 (Cloudflare); real Chrome → /login/?login_callback=/sell/ |
+| Vinted | https://www.vinted.com/items/new | 307 → signup with ref_url=/items/new |
+| Depop | https://www.depop.com/products/create/ | curl 403; real Chrome → /login/?redirect=/products/create/ |
+| eBay | https://www.ebay.com/sl/prelist/suggest | 200 "List an item \| eBay" (Start your listing). Was /sl/sell, which is only the "Selling" landing page |
+| Etsy | https://www.etsy.com/your/shops/me/listing-editor/create | 302 → signin from_page=/your/shops/me/listing-editor/create |
+| FB Marketplace | https://www.facebook.com/marketplace/create/item | 302 → m.facebook.com/marketplace/create/item |
+| Grailed | https://www.grailed.com/sell | 302 → /users/sign_up (no return link kept; /sell/new does the same). After signing in, tap Sell |
+
 ### Price-search links (checked 2026-10-21 ~6:30 PM CT)
 These are links she taps herself; the app and the scout never load these sites.
 | Site | Link opens | How checked |
@@ -150,6 +165,7 @@ These are links she taps herself; the app and the scout never load these sites.
 **Etsy API key rule (2026):** every Etsy v3 request needs `x-api-key: <keystring>:<shared secret>` (keystring alone no longer works). We still need the shared secret once the app is approved.
 
 ## 9. Open to-dos
+0. **Check the new Post flow on her Samsung:** tap Post to Poshmark on an item with 3+ photos; answer Chrome's one-time "Download multiple files?" with Allow; confirm the photos show in Gallery (Download album) and in Poshmark's photo picker, and that the Poshmark link opens the Poshmark app.
 1. **Finish the domain move to app.hangerhustle.com:**
    - ~~HTTPS certificate + Enforce HTTPS~~ done 6:41 PM.
    - Add `https://app.hangerhustle.com` to the Google OAuth client's **Authorized JavaScript origins** (Cloud Console, project closet-to-cash).

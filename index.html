@@ -183,6 +183,7 @@ details.ce .in{padding:0 12px 12px}
 .mode.bot{background:#e8eef9;color:#1f4b8f}.mode.you{background:var(--gold-bg);color:#7a5a12}
 .checklist{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
 .checklist ol{margin:0;padding-left:20px}.checklist li{margin:4px 0}
+.checklist .stepcard{margin:0 0 8px;font-size:15px;line-height:1.35}
 details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
 .sites label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}.sites input{width:22px;height:22px}
 .foot{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 24px}.foot a{color:var(--muted)}
@@ -259,7 +260,7 @@ const POST_MODES = {
    on = shown by default (she can toggle sites in Settings). */
 const PLATFORMS = {
   poshmark:{name:'Poshmark', short:'PM', color:'#7f0353', create:'https://poshmark.com/create-listing', titleMax:80, descMax:1500, mode:'prefill', on:true},
-  ebay:    {name:'eBay',     short:'eB', color:'#0064d2', create:'https://www.ebay.com/sl/sell',      titleMax:80, descMax:null, mode:'api', on:true,
+  ebay:    {name:'eBay',     short:'eB', color:'#0064d2', create:'https://www.ebay.com/sl/prelist/suggest', titleMax:80, descMax:null, mode:'api', on:true,
             modeNote:'Bot will post through eBay\u2019s official Sell (Inventory) API once Michael sets up the eBay developer app.'},
   depop:   {name:'Depop',    short:'Dp', color:'#ff2300', create:'https://www.depop.com/products/create/', titleMax:null, descMax:1000, mode:'crosslist', on:true,
             modeNote:'Depop\u2019s Terms allow crosslisting tools if you remove the item promptly when it sells elsewhere. The bot will use Depop\u2019s official Selling API (access by request: business@depop.com); a bot clicking through the Depop website itself is not allowed.'},
@@ -656,6 +657,41 @@ function downloadBlob(blob,name){
   const u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=name; a.rel='noopener';
   document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },8000);
 }
+/* ---- Post flow helpers (field bug 2026-10-21 7:15 PM CT: Android share sheet had no Poshmark) ---- */
+const UA_=navigator.userAgent||'';
+const IS_IOS=/iPad|iPhone|iPod/.test(UA_)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const IS_ANDROID=/Android/i.test(UA_);
+const DL_OK_KEY='ctc-multidl-ok';     // set once she has seen/answered Chrome's "Download multiple files?" question
+const DL_STAGGER_MS=180, DL_SPREAD_MAX_MS=2400;   // all downloads start well inside Chrome's ~5 s tap window
+// Remove metadata segments from a JPEG without re-encoding: APP1 (EXIF incl. GPS, XMP), APP3-APP13 (IPTC/Photoshop), APP15, COM.
+// Keeps APP0 (JFIF), APP2 (ICC colour profile) and APP14 (Adobe colour transform). Returns the input unchanged if it isn't a JPEG.
+function stripJpegMeta(buf){
+  const u=new Uint8Array(buf instanceof ArrayBuffer?buf:buf.buffer?buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength):buf);
+  if(u.length<4||u[0]!==0xFF||u[1]!==0xD8) return u;
+  const out=[u.subarray(0,2)]; let i=2;
+  while(i+4<=u.length){
+    if(u[i]!==0xFF) return u;                       // not a marker where one should be: leave the file alone
+    const m=u[i+1];
+    if(m===0xFF){ i++; continue; }                  // fill byte
+    if(m===0xDA||m===0xD9){ out.push(u.subarray(i)); break; }   // start of scan: copy the rest as is
+    if(m>=0xD0&&m<=0xD7||m===0x01){ out.push(u.subarray(i,i+2)); i+=2; continue; }
+    const len=(u[i+2]<<8)|u[i+3]; if(len<2||i+2+len>u.length) return u;
+    const drop=(m===0xE1)||(m>=0xE3&&m<=0xED)||m===0xEF||m===0xFE;
+    if(!drop) out.push(u.subarray(i,i+2+len));
+    i+=2+len;
+  }
+  const n=out.reduce((a,b)=>a+b.length,0), r=new Uint8Array(n); let o=0; out.forEach(b=>{ r.set(b,o); o+=b.length; }); return r;
+}
+function photoFileName(sku,i,type){ const safe=String(sku||'item').replace(/[^A-Za-z0-9-]+/g,'-').replace(/^-+|-+$/g,'')||'item';
+  const ext=/png/.test(type||'')?'png':/webp/.test(type||'')?'webp':'jpg'; return `HH-${safe}-${i+1}.${ext}`; }
+function cleanPhotoFile(p,sku,i){ const type=p.type||'image/jpeg'; const data=/jpe?g/.test(type)?stripJpegMeta(p.buf):p.buf;
+  return new File([data],photoFileName(sku,i,type),{type}); }
+// Save every photo as its own file with staggered <a download> clicks (Chrome asks "Download multiple files?" once per site).
+function saveFilesStaggered(files){
+  const step=files.length>1?Math.min(DL_STAGGER_MS,Math.floor(DL_SPREAD_MAX_MS/(files.length-1))):0;
+  files.forEach((f,i)=>{ if(i===0) downloadBlob(f,f.name); else setTimeout(()=>downloadBlob(f,f.name),i*step); });
+  return (files.length-1)*step;
+}
 
 /* ===================== app state & routing ===================== */
 let ITEMS=[];
@@ -835,8 +871,9 @@ async function renderDetail(id){
   if(!it){ location.hash='#/'; return; }
   it.status={...defaultStatus(),...(it.status||{})}; it.custom=it.custom||{}; it.comps=it.comps||{};
   const photos=await getPhotos(it.id);
-  // Pre-build File objects so navigator.share() runs directly inside the tap (Safari requires a fresh user gesture).
-  DETAIL={item:it, files:photos.map((p,i)=>new File([photoBlob(p)],`${it.sku}-${i+1}.jpg`,{type:p.type||'image/jpeg'}))};
+  // Pre-build cleaned, numbered File objects (HH-V-0001-1.jpg, metadata stripped) so downloads and
+  // navigator.share() run directly inside the tap (Safari and Chrome's popup rules need a fresh user gesture).
+  DETAIL={item:it, files:photos.map((p,i)=>cleanPhotoFile(p,it.sku,i))};
   const urls=DETAIL.files.map(f=>{ const u=URL.createObjectURL(f); objectURLs.push(u); return u; });
   const kv=[['Brand',it.brand],['Type',typeLabel(it.type)],['Era',it.era],['Size',it.size],['Color',it.color],['Material',it.material],['Condition',condLabel(it.condition)],['Flaws',it.flaws],
     ['Measurements',measLines(it,'').join(' \u00b7 ')],['Keywords',it.keywords],['Cost',money(it.cost)],['Asking',money(it.price)]].filter(x=>x[1]&&x[1]!=='\u2014');
@@ -844,15 +881,15 @@ async function renderDetail(id){
   <div class="bar"><a class="btn sm ghost" href="#/">\u2039 Inventory</a><span class="ttl">${esc(it.sku)}</span><a class="btn sm" href="#/edit/${it.id}">Edit</a></div>
   <div id="delist"></div>
   ${urls.length?`<div class="gallery">${urls.map(u=>`<img src="${u}" alt="">`).join('')}</div>`:`<a class="nophoto" href="#/edit/${it.id}">+ Add photos</a>`}
-  ${urls.length?`<div class="pbtns"><button class="btn primary" id="shareBtn">\u2934 Share photos</button><button class="btn" id="dlBtn">\u2b07 Download photos</button></div>
-  <p class="note">On a phone, Share sends the photos straight to the Poshmark / Depop / Mercari app or saves them to your camera roll.</p>`:''}
+  ${urls.length?`<div class="pbtns"><button class="btn primary" id="dlBtn">\u2b07 ${IS_IOS?'Save photos':'Save photos to phone'}</button><button class="btn" id="shareBtn">\u2934 Share photos\u2026</button></div>
+  <p class="note">${IS_IOS?'Save photos opens the share sheet: tap <b>Save Images</b> to put them in Photos.':'Save photos puts them in your Gallery (Downloads folder), named '+esc(DETAIL.files[0].name)+' and so on. Share photos\u2026 opens the phone\u2019s share sheet instead.'}</p>`:''}
   <div class="summary"><div class="sku">${esc(it.sku)}</div><h2>${esc(buildTitle(it,80))}</h2>
     <div class="row between" style="margin-top:6px"><span class="price" style="font-size:22px">${money(it.price)}</span><span id="soldBox"></span></div>
     <div class="sbtns"><button class="btn sm" id="goFind">\ud83d\udd0e Find prices</button></div>
     <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
 
   <h2 class="sec">Listings</h2>
-  <p class="sub">\u201cYou publish\u201d sites: tap <b>Post to\u2026</b> \u2014 it copies the listing, sends the photos and opens the site; you just check and tap publish. \u201cBot\u201d sites will be posted for you once the bot is connected (not yet) \u2014 you can always post them yourself. Choose your sites in Settings.</p>
+  <p class="sub">\u201cYou publish\u201d sites: tap <b>Post to\u2026</b> \u2014 it saves the photos to your phone, copies the title and opens the site; you add the photos, paste, check and tap publish. \u201cBot\u201d sites will be posted for you once the bot is connected (not yet) \u2014 you can always post them yourself. Choose your sites in Settings.</p>
   <div id="pcards">${shownKeys(it).map(p=>pcardHTML(p,it)).join('')}</div>
 
   <h2 class="sec" id="findSec">Find prices</h2>
@@ -868,7 +905,7 @@ async function renderDetail(id){
   updateStatusUI();
   renderFind(); renderRec(); renderComps();
   $('#goFind').onclick=()=>{ $('#findSec').scrollIntoView({behavior:'smooth',block:'start'}); };
-  if(urls.length){ $('#shareBtn').onclick=sharePhotos; $('#dlBtn').onclick=downloadPhotos; }
+  if(urls.length){ $('#shareBtn').onclick=sharePhotos; $('#dlBtn').onclick=()=>{ if(IS_IOS) sharePhotos(); else { downloadPhotos(); toast(`Saving ${DETAIL.files.length} photo${DETAIL.files.length===1?'':'s'} to Downloads`); } }; }
   $('#delBtn').onclick=async()=>{ if(!confirm(`Delete ${it.sku} and its photos? This cannot be undone.`)) return; await deleteItem(it.id); await refresh(); toast('Deleted'); location.hash='#/'; };
 }
 function pcardHTML(p,it){
@@ -910,35 +947,63 @@ const CHECK_EXTRA = {
   etsy:    ['Choose \u201cvintage\u201d (at least 20 years old) and the decade; paste the tags.','Choose a shipping profile.'],
   depop:   ['Pick category, brand, size, condition and colours.','Choose shipping.'],
 };
-function showChecklist(p,copied,shared){
-  const P=PLATFORMS[p], el=$(`.pcard[data-p="${p}"] .checklist`), it=DETAIL.item, L=cardListing(p);
+// Step card shown after "Post to <site>". photoMode: 'saved' (downloads), 'shared' (iOS share sheet), 'none' (no photos).
+// opened: the site tab was opened; needOpen: first time on Android, she opens the site herself after answering Chrome's question.
+function showChecklist(p,copied,photoMode,opened,needOpen){
+  const P=PLATFORMS[p], el=$(`.pcard[data-p="${p}"] .checklist`), it=DETAIL.item, n=DETAIL.files.length, isD=p==='depop';
+  const what=isD?'description':'title', from=IS_IOS?'Photos':'Downloads';
+  const head=(n?(photoMode==='shared'?(IS_IOS?'Photos: tap <b>Save Images</b> in the share sheet (they go to Photos)':'Photos sent to the share sheet'):`Photos saved to your Gallery/Downloads`):'No photos on this item yet')
+    +(copied?`, ${what} copied.`:`. Copy didn\u2019t work \u2014 use Copy ${what} below.`)
+    +` In ${esc(P.name)}: ${n?`add photos from ${from}, `:''}paste ${what}${isD?'':', then tap <b>Copy description</b>'}.`;
   const steps=[
-    copied?(p==='depop'?'<b>Description copied</b> (its first line is the headline). Paste it into the description box.':'<b>Title copied.</b> Paste it into the title box, then tap <b>Copy description</b> below and paste that into the description.'):'Copy didn\u2019t work \u2014 use the copy buttons below.',
-    DETAIL.files.length?(shared?'Photos: in the share sheet you picked the app (or saved them).':'Photos were downloaded \u2014 add them from your Downloads/Photos.'):'This item has no photos yet.',
+    n?(photoMode==='shared'?`Photos: in the share sheet tap <b>Save Images</b>, then in ${esc(P.name)} pick them from Photos.`:`Photos: ${n} saved as <b>${esc(DETAIL.files[0].name)}</b>${n>1?` \u2026 <b>${esc(DETAIL.files[n-1].name)}</b>`:''} (Gallery \u2192 Download, or Files \u2192 Downloads). In ${esc(P.name)} add them in that order.`):'This item has no photos yet.',
+    isD?'<b>Description copied</b> (its first line is the headline). Paste it into the description box.':'<b>Title copied.</b> Paste it into the title box, then tap <b>Copy description</b> below and paste that into the description.',
     ...(CHECK_EXTRA[p]||[]), `Price: <b>${money(it.price)}</b>. Check it over, then tap publish.`, 'Come back here and tap <b>I published it</b>.'];
+  const firstDl=needOpen?`<div class="gs" style="margin:0 0 8px">First time only: if Chrome asks <b>\u201cDownload multiple files?\u201d</b>, tap <b>Allow</b>. Then tap <b>Open ${esc(P.name)}</b>. Next time this is all one tap.</div>`:'';
+  const openHint=(!opened&&!needOpen)?`<div class="gs" style="margin:0 0 8px">${photoMode==='shared'?'After saving the photos,':'Now'} tap <b>Open ${esc(P.name)}</b>.</div>`:'';
   el.hidden=false;
-  el.innerHTML=`<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
-    <div class="pbtns">${p==='depop'?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${p==='depop'?'':'primary'}" data-cl="d">Copy description</button>
-    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a></div>
+  el.innerHTML=`<p class="stepcard"><b>${head}</b></p>${firstDl}${openHint}<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
+    <div class="pbtns">${isD?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${isD?'':'primary'}" data-cl="d">Copy description</button>
+    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a>
+    ${n?`<button class="btn sm" data-cl="save">\u2b07 Save photos again</button><button class="btn sm ghost" data-cl="share">\u2934 Share photos\u2026</button>`:''}</div>
     <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed</button>`;
+  $('.openSite',el).addEventListener('click',()=>{ try{ localStorage.setItem(DL_OK_KEY,'1'); }catch(e){} });
   el.querySelectorAll('[data-cl]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.cl;
     if(k==='done'){ await setStatus(p,'listed'); el.hidden=true; const d=$(`.pcard[data-p="${p}"] details.ed`); d.open=true; $(`.pcard[data-p="${p}"] .url`).focus(); toast(`Marked listed on ${P.name} \u2014 paste the link if you like`); return; }
+    if(k==='share'){ sharePhotos(); return; }
+    if(k==='save'){ if(IS_IOS) sharePhotos(); else { downloadPhotos(); toast(`Saving ${n} photo${n===1?'':'s'} to Downloads`); } return; }
     const L2=cardListing(p); const ok=await copyText(k==='t'?L2.title:k==='d'?L2.desc:L2.tags||''); toast(ok?`Copied ${k==='t'?'title':k==='d'?'description':'tags'}`:'Copy blocked'); });
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 // Posting-ready text: sanitized, title cut to the site's limit. Raw textarea values are never copied as-is.
 function cardListing(p){ const el=$(`.pcard[data-p="${p}"]`), P=PLATFORMS[p]; return {title:cleanTitle($('.ti',el).value,P.titleMax), desc:clip(cleanText($('.de',el).value),P.descMax), tags:$('.tg',el)?cleanTags($('.tg',el).value):''}; }
-// One tap: copy whole listing -> send photos (share sheet opens the marketplace app) or download them + open the site
+// One tap "Post to <site>" (no share sheet on Android/desktop):
+//  1. save the cleaned, numbered photos as separate downloads (staggered <a download>),
+//  2. copy the title as clean plain text (Depop: the description, its first line is the headline),
+//  3. open the site's sell page in a new tab (Android hands the https link to the marketplace app if it's installed),
+//  4. show the step card. iPhone/iPad: Safari can't save many downloads, so the photo step is the share sheet
+//     (Save Images) and she opens the site from the card afterwards.
 async function postFlow(p){
-  // Title and description are copied as separate plain-text values: pasting a combined block into a title box
-  // is what trips limits like Vinted's 100 characters. Depop has no title field; its description starts with the headline.
-  const P=PLATFORMS[p], L=cardListing(p), txt=p==='depop'?L.desc:L.title;
+  const P=PLATFORMS[p], L=cardListing(p), txt=p==='depop'?L.desc:L.title, files=DETAIL.files;
   const copied=copySync(txt);                 // synchronous copy while the page still has focus
-  const files=DETAIL.files, canShare=files.length&&navigator.canShare&&navigator.share&&navigator.canShare({files});
-  if(!canShare) window.open(P.create,'_blank','noopener');   // must run inside the tap
+  if(IS_IOS){
+    const canShare=files.length&&navigator.canShare&&navigator.share&&navigator.canShare({files});
+    let ok=copied; if(!ok) ok=await copyText(txt);
+    if(!canShare){ window.open(P.create,'_blank','noopener'); if(files.length) downloadPhotos(); showChecklist(p,ok,files.length?'saved':'none',true,false); return; }
+    showChecklist(p,ok,'shared',false,false);
+    try{ await navigator.share({files, title:L.title}); }catch(e){ if(e.name!=='AbortError'){ toast('Share failed \u2014 downloading instead'); downloadPhotos(); } }
+    return;
+  }
+  let dlOk=true; try{ dlOk=localStorage.getItem(DL_OK_KEY)==='1'; }catch(e){}
+  const needOpen=IS_ANDROID&&files.length>1&&!dlOk;   // first time: let her answer Chrome's one-time question before leaving the page
+  let spread=0; if(files.length) spread=saveFilesStaggered(files);
+  let opened=false;
+  if(!needOpen){
+    const go=()=>{ const w=window.open(P.create,'_blank','noopener'); opened=true; return w; };
+    if(spread===0) go(); else await new Promise(r=>setTimeout(()=>{ go(); r(); },spread+120));
+  }
   let ok=copied; if(!ok) ok=await copyText(txt);
-  showChecklist(p,ok,canShare);
-  if(canShare){ try{ await navigator.share({files, title:L.title}); }catch(e){ if(e.name!=='AbortError') downloadPhotos(); } }
-  else if(files.length) downloadPhotos();
+  showChecklist(p,ok,files.length?'saved':'none',opened,needOpen);
 }
 function copySync(text){
   const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';
@@ -1087,7 +1152,7 @@ async function sharePhotos(){
     try{ await navigator.share({files}); }catch(e){ if(e.name!=='AbortError'){ toast('Share failed \u2014 downloading instead'); downloadPhotos(); } }
   } else { toast('Photo sharing not supported here \u2014 downloading instead'); downloadPhotos(); }
 }
-function downloadPhotos(){ DETAIL.files.forEach((f,i)=>setTimeout(()=>downloadBlob(f,f.name),i*400)); }
+function downloadPhotos(){ return saveFilesStaggered(DETAIL.files); }
 
 /* ===================== Google sign-in + Drive backup (client-side only) =====================
    - Google Identity Services *token client* gives a short-lived access token (about 1 hour). No backend.
