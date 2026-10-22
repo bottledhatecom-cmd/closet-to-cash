@@ -2,7 +2,7 @@
 
 # HangHustle Manual
 
-The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 6:50 PM CT**.
+The running log of everything done on **Hanger Hustle**, Michael's wife's vintage resale app. All times are US Central (CT). Last updated: **2026-10-21 8:40 PM CT**.
 
 - Master copy: `/workspace/shared-library/manuals/HangHustle-Manual.md` (Grok's box, shared by all of Michael's bots)
 - Repo copy: [`HANGHUSTLE-MANUAL.md`](https://github.com/bottledhatecom-cmd/closet-to-cash/blob/main/HANGHUSTLE-MANUAL.md)
@@ -29,7 +29,8 @@ The running log of everything done on **Hanger Hustle**, Michael's wife's vintag
 | Repo | https://github.com/bottledhatecom-cmd/closet-to-cash |
 | Privacy policy | https://app.hangerhustle.com/privacy.html (was …github.io/closet-to-cash/privacy.html) |
 | Terms of use | https://app.hangerhustle.com/terms.html (was …github.io/closet-to-cash/terms.html) |
-| Landing page (future) | https://hangerhustle.com (bought 6:19 PM; not built or connected yet) |
+| Landing page | https://hangerhustle.com (live 7:07 PM 2026-10-21, HTTPS enforced; www redirects to it). Repo https://github.com/bottledhatecom-cmd/hangerhustle-site |
+| Android APK download | https://github.com/bottledhatecom-cmd/hangerhustle-site/releases/download/v1.0.1/HangerHustle-1.0.1.apk (release v1.0.1) |
 | Android asset links | https://app.hangerhustle.com/.well-known/assetlinks.json |
 | Technical handoff | HANDOFF-FOR-CLAUDE.md (repo root) |
 
@@ -76,6 +77,9 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 | ~7:50 PM | **Website links in the app (sw `ctc-v8`).** Settings now ends with an **About** block: a big **"Hanger Hustle website"** button (https://hangerhustle.com/), **Android app download** (https://hangerhustle.com/#install-apk) and **Help & FAQ** (https://hangerhustle.com/#faq); both anchors checked on the live landing page. The footer reads Privacy · Terms · Website. On the Inventory screen a small **ⓘ** next to "Hanger Hustle" opens a little panel (website, Help, Close); tapping the title itself does nothing, so she can't leave the inventory by accident (chosen over long-press, which phones use for text selection and nobody discovers). In the installed app the links open in the same window; in a normal browser tab they open a new tab. Tests: new `sitelink-test.js` + all harnesses pass. |
 | 7:57 PM | **Approved: bigger, readable text.** The text in the app was too small to read on her Android phone. |
 | ~8:07 PM | **Readable text on phones (sw `ctc-v9`, commit 4772c98).** All text sizes now use `rem` (1rem = the phone's normal text size, 16px), so nothing is set in tiny pixels any more. Normal text and every button: **16px**. Field labels (Brand, Size on tag…): **15px**. Hints, notes, counters, the footer, table text, the Sign-in pill and the bottom-bar labels (Inventory / Settings): **14px**. Smallest things (SKU numbers like V-0001, the PM/eB/Dp badges on cards, COVER, Sold/Asking labels, "Bot posts" badges): **13px** (some were 10px before). Every button, chip, the Not listed/Listed/Sold switch and the header **ⓘ** is at least **44px** tall for easy tapping. Grey hint text is darker (`#665548`, at least 5.7:1 contrast, above the WCAG AA 4.5:1 minimum). On narrow phones (380px or less) photos show 2 per row so the ✕ and ★ buttons don't overlap, and the price table wraps instead of running off the side. Pinch-zoom still works (nothing in the page blocks it), and her phone's own font-size setting still applies. Checked at 320/360/768px: nothing overflows or gets cut off. Tests: new `fontsize-test.js` + all harnesses pass, live checked. Undo: `git revert 4772c98`. |
+| 8:27 PM | **Strategy Page written (HH-Strategy, research only, nothing in the app changed):** [Hanger Hustle strategy](https://cursor.com/canvas/store-66940967-4ce6-4e73-ad1e-2befa113c2a7/9ce848c8-f8ea-4b8e-bd68-2e9c3083c498). Competitor prices re-checked on their own pricing pages (Vendoo, List Perfectly, Crosslist, Flyp, PrimeLister, Nifty, OneShop, Listelf), where we win, a free + Plus plan that never costs Michael money (AI and API posting paid-only, capped), ranked feature ideas, risks, next 3 steps. |
+| 8:00 PM | **Approved: one-tap Copy button per field** (build + deploy), so she can copy, switch to the site, paste, come back and copy the next field. |
+| ~8:36 PM | **Copy fields one by one (sw `ctc-v10`, commit 1e93fe5).** Every site card on an item now has a **📋 Copy fields one by one** panel: one big **Copy** button per field (title, description, price, brand, size, condition, color, category, tags), listed **in that site's own sell-form order** (table in section 8), numbered 1, 2, 3…. Fields a site's form doesn't have are left out and named in a note (e.g. Depop has no title: the description's first line is the headline; Vinted and eBay have no tags; Etsy has no brand/condition field). Everything copied is cleaned plain text: hidden characters, odd spaces, smart quotes and emoji removed from short fields, whitespace trimmed; titles cut at a whole word to each site's limit (Vinted 100, eBay 80, Poshmark 80, Mercari 80, Etsy 140, Grailed 60, FB 100); **price is a plain number** (89 or 89.50, no $ or comma); condition uses each site's own words (e.g. Vinted "Very good", Mercari "Like New", eBay "Pre-owned - Excellent", Grailed "Gently Used"); tags fit each site (Poshmark 3 style tags, Etsy up to 13 × 20 characters, Grailed up to 10). After a tap the button turns green **"✓ Copied!"**, a message says "Copied! Brand for Poshmark — now paste it there", the row stays marked **✓ Copied** and the header counts "3 of 9 copied". Marks are per item and site and last for this session (a **Clear copied marks** button resets them). **Post to <site>** still works as before, and now also marks the title (Depop: description) as copied and opens the panel for the rest; the old Copy title / Copy description buttons mark their rows too. Edits she makes in "Edit text" are what gets copied. Copying uses the phone's clipboard API, falls back to the older copy method on old Android WebViews, and if both are blocked it shows the text selected in a box so she can long-press → Copy. Big and readable: 16px text and buttons, 44px+ buttons, works at 320/360px, AA contrast. Tests: new `copyfields-test.js` (52 checks, mocked clipboard) + all harnesses pass, local and live. Not yet checked on her real phone. Undo: `git revert 1e93fe5` and bump the sw version. |
 
 ## 4. Accounts & setup
 **No passwords or secrets are stored by any bot.** Michael and his wife hold all passwords. Only public IDs are written here.
@@ -109,7 +113,7 @@ Newest at the bottom. Every bot working on Hanger Hustle adds a line here in the
 |---|---|---|
 | Vendoo | $14.99–59.99/mo | Chrome extension fills forms in your browser; eBay/Etsy via authorized tokens; mobile apps |
 | List Perfectly | $29–99+/mo | Extension fills forms, you click Post; mobile app only on top plan |
-| Crosslist | $29.99–44.99/mo | API where a site has one, otherwise extension; no mobile app |
+| Crosslist | $29.99–44.99/mo | API where a site has one, otherwise extension; **mobile app launched in 2026** (this table said "no mobile app" until 2026-10-21; corrected after the HH-Strategy re-check) |
 
 Sources: underpricedai.com/blog/best-cross-listing-apps, vylist.ai/crosslisting-app-pricing, crosslist.com/blog/vendoo-vs-list-perfectly.
 
@@ -140,6 +144,19 @@ Sources: underpricedai.com/blog/best-cross-listing-apps, vylist.ai/crosslisting-
 
 Sources: grailed.com/about/terms; facebook.com/legal/automated_data_collection_terms; developers.whatnot.com; Vestiaire Help Center "Professional seller: Listing Solutions"; help.etsy.com "How to Use Etsy's API"; developers.etsy.com; eBay developer docs.
 
+### Sell-form field order (checked 2026-10-21 ~8:30 PM CT; used by "Copy fields one by one")
+Sources: Depop Help Centre "How to list an item", Grailed "How to Sell" guide, Mercari Help "Creating a listing"; the others from each site's current listing form as known. Not checked inside a signed-in form; sites change these, so if she says the order is off, update `SELL_FORM` in index.html.
+| Site | Order in the app (fields the site's form lacks are left out) |
+|---|---|
+| Poshmark | Title, Description, Category, Size, Condition (New With Tags), Brand, Color, Style tags (3), Listing price |
+| Mercari | Title, Description, Category, Brand, Condition, Size, Color, Tags, Price |
+| Vinted | Title, Description, Category, Brand, Size, Condition, Color, Price (no tags) |
+| Depop | Description (headline + hashtags), Category, Brand, Condition, Size, Color, Price (no title, no tags field) |
+| eBay | Title, Category, Brand, Size, Color (item specifics), Condition, Description, Price (no tags) |
+| Etsy | Title, Category, Description, Price, Primary color, Size, Tags (13) (no brand/condition field) |
+| FB Marketplace | Title, Price, Category, Condition, Description, Brand, Color, Size, Product tags |
+| Grailed | Category, Designer, Size, Item name, Color, Condition, Description, Tags (10), Price |
+
 ### Sell-page links (checked 2026-10-21 ~7:20 PM CT, signed out, Android Chrome user agent)
 What "Post to <site>" opens. A redirect to log in is expected when signed out; signed in (or in the app) they land on the listing form.
 | Site | Link | Check |
@@ -169,13 +186,14 @@ These are links she taps herself; the app and the scout never load these sites.
 **Etsy API key rule (2026):** every Etsy v3 request needs `x-api-key: <keystring>:<shared secret>` (keystring alone no longer works). We still need the shared secret once the app is approved.
 
 ## 9. Open to-dos
+0b. **Check Copy fields one by one on her Samsung:** on an item, open a she-publishes site (e.g. Vinted), open **Copy fields one by one**, tap Copy on Title → switch to Vinted → paste → come back → Copy Description, and so on; confirm each paste is clean (no odd symbols), the row shows ✓ Copied, and the price pastes as a plain number.
 0. **Check the new Post flow on her Samsung:** tap Post to Poshmark on an item with 3+ photos; answer Chrome's one-time "Download multiple files?" with Allow; confirm the photos show in Gallery (Download album) and in Poshmark's photo picker, and that the Poshmark link opens the Poshmark app.
 1. **Finish the domain move to app.hangerhustle.com:**
    - ~~HTTPS certificate + Enforce HTTPS~~ done 6:41 PM.
    - Add `https://app.hangerhustle.com` to the Google OAuth client's **Authorized JavaScript origins** (Cloud Console, project closet-to-cash).
    - **Her browser data does not follow the move** (each web address has its own storage). The old github.io address now redirects, so anything saved only there can't be opened directly any more. If she saved items before 6:22 PM: restore them from Google Drive backup on the new address if she had signed in, otherwise ask a bot to temporarily remove the custom domain so she can export a JSON backup first.
    - Install the new Android build (1.0.1) / re-install the home-screen app from the new address.
-2. **Landing page on hangerhustle.com:** build once there's enough content; it grows with the app. DNS/hosting hookup needs Michael's OK.
+2. **Landing page on hangerhustle.com:** LIVE since 7:07 PM 2026-10-21 (repo `bottledhatecom-cmd/hangerhustle-site`). Keep it growing with the app: add features only once they exist, move items out of "Coming soon" when they ship, and update the Android download link/version/size (new release on the site repo) with every APK.
 3. **Google consent screen:** keep her as test user; publish it (privacy/terms are live) when ready. In Testing, sign-in must be renewed every 7 days.
 4. **eBay:** click the verification email; create keysets; decide where the secret and refresh token live. Once the production keyset exists, put the App ID / Cert ID on the box as `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` (never in the app) and the price scout starts filling eBay asking prices. Real **sold** prices by API need eBay's Marketplace Insights API (restricted; apply separately).
 5. **Etsy:** wait for personal-app approval; she opens her Etsy shop; set OAuth callback URL; connect the shop. For the price scout also note the app's **shared secret** (`ETSY_API_KEY` + `ETSY_SHARED_SECRET` on the box).
