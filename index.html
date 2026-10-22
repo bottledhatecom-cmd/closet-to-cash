@@ -186,6 +186,10 @@ details.ce .in{padding:0 12px 12px}
 .checklist .stepcard{margin:0 0 8px;font-size:15px;line-height:1.35}
 details.ed{margin-top:10px;border-top:1px solid var(--line)}details.ed>summary{min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
 .sites label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}.sites input{width:22px;height:22px}
+.top h1 .about-i{display:inline-flex;align-items:center;justify-content:center;vertical-align:super;margin-left:6px;width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);font:italic 700 13px/1 var(--serif);cursor:pointer;position:relative}
+.top h1 .about-i::after{content:'';position:absolute;inset:-6px}
+.about-pop{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px auto 0;padding:10px;max-width:360px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.about-pop[hidden]{display:none}
 .foot{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 24px}.foot a{color:var(--muted)}
 .top{position:relative}
 .acct-slot{position:absolute;right:0;top:calc(10px + env(safe-area-inset-top))}
@@ -235,6 +239,8 @@ code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:12px;word-br
 const APP_NAME = 'Hanger Hustle';           // <- change the app name here
 const APP_TAGLINE = 'vintage inventory \u00b7 cross-listing helper';
 const SKU_PREFIX = 'V-';
+// Landing site links (Settings > About, header (i)). Anchors checked on https://hangerhustle.com/ 2026-10-21 7:47 PM CT: #install-apk, #faq.
+const SITE_URL = 'https://hangerhustle.com/', SITE_APK_URL = SITE_URL+'#install-apk', SITE_HELP_URL = SITE_URL+'#faq';
 const IMG_MAX_PX = 1600, IMG_QUALITY = 0.8, THUMB_PX = 360;
 const DB_NAME = 'closet-to-cash-db';   // kept from the app's first name so existing data keeps working (as are 'ctc-' storage keys and the Drive file name)
 
@@ -645,6 +651,17 @@ function priceAdvice(it){
   return {target,list,rows,reasons,bestNet,nSold,nAsk};
 }
 
+/* ===================== website links ===================== */
+// Installed app (home-screen PWA, iOS standalone, or the Android TWA): open in the same tab so she isn't dropped into
+// a separate browser tab; in a normal browser tab: open a new tab so the app stays where it was.
+function isInstalledApp(){ try{ if(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: minimal-ui)').matches) return true; }catch(e){}
+  return navigator.standalone===true||/^android-app:\/\//.test(document.referrer||''); }
+// Header (i): a tap only opens a small panel; leaving the app needs a second, deliberate tap on the website link.
+document.addEventListener('click',e=>{ const pop=document.getElementById('aboutPop'), btn=document.getElementById('aboutI'); if(!pop||!btn) return;
+  if(e.target===btn){ const open=pop.hidden; pop.hidden=!open; btn.setAttribute('aria-expanded',String(open)); return; }
+  if(e.target.id==='popClose'||(!pop.hidden&&!pop.contains(e.target))){ pop.hidden=true; btn.setAttribute('aria-expanded','false'); } });
+function siteLinkAttrs(){ return isInstalledApp()?'':' target="_blank" rel="noopener"'; }
+
 /* ===================== clipboard / download ===================== */
 async function copyText(text){
   try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } }catch(e){ /* fall back below */ }
@@ -715,7 +732,8 @@ function route(){
 /* ---------- Inventory ---------- */
 function renderInventory(){
   $('#app').innerHTML=`
-  <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}</h1><p class="tag">${esc(APP_TAGLINE)}</p>
+  <header class="top"><div id="acctSlot" class="acct-slot">${accountChipHTML()}</div><h1>${esc(APP_NAME)}<button type="button" class="about-i" id="aboutI" aria-label="About ${esc(APP_NAME)}: website and help" aria-expanded="false" aria-controls="aboutPop">i</button></h1><p class="tag">${esc(APP_TAGLINE)}</p>
+    <div class="about-pop" id="aboutPop" role="dialog" aria-label="About ${esc(APP_NAME)}" hidden><a class="btn sm" id="popSite" href="${SITE_URL}"${siteLinkAttrs()}>\ud83c\udf10 ${esc(APP_NAME)} website \u2197</a><a class="btn sm ghost" id="popHelp" href="${SITE_HELP_URL}"${siteLinkAttrs()}>Help \u2197</a><button type="button" class="btn sm ghost" id="popClose">Close</button></div>
     <svg class="ornament" viewBox="0 0 120 8" aria-hidden="true"><path d="M0 4h48M72 4h48" stroke="currentColor"/><circle cx="60" cy="4" r="3" fill="currentColor"/><circle cx="52" cy="4" r="1.5" fill="currentColor"/><circle cx="68" cy="4" r="1.5" fill="currentColor"/></svg></header>
   <section class="stats" id="stats"></section>
   <div id="globalAlert"></div>
@@ -1490,7 +1508,13 @@ function renderBackup(){
   </fieldset>
   <fieldset><legend>Storage</legend><p class="note" id="storeInfo">Checking\u2026</p>
     <p class="note">Tip: on iPhone, Share \u2192 \u201cAdd to Home Screen\u201d so Safari is less likely to clear data, and back up weekly.</p></fieldset>
-  <p class="foot"><a href="privacy.html">Privacy</a> \u00b7 <a href="terms.html">Terms</a> \u00b7 ${esc(APP_NAME)}</p>`;
+  <fieldset class="about" id="about"><legend>About</legend>
+    <a class="btn primary block" id="siteLink" href="${SITE_URL}"${siteLinkAttrs()}>\ud83c\udf10 ${esc(APP_NAME)} website \u2197</a>
+    <p class="note" style="text-align:center">hangerhustle.com \u2014 what the app does, how to install it, help</p>
+    <div class="pbtns"><a class="btn sm" id="apkLink" href="${SITE_APK_URL}"${siteLinkAttrs()}>\ud83d\udcf1 Android app download</a><a class="btn sm" id="helpLink" href="${SITE_HELP_URL}"${siteLinkAttrs()}>\u2753 Help &amp; FAQ</a></div>
+    <p class="note">This app lives at <b>app.hangerhustle.com</b>; the website is <b>hangerhustle.com</b>. You can also tap the small \u24d8 next to the name on the Inventory screen.</p>
+  </fieldset>
+  <p class="foot"><a href="privacy.html">Privacy</a> \u00b7 <a href="terms.html">Terms</a> \u00b7 <a href="${SITE_URL}"${siteLinkAttrs()}>Website</a> \u00b7 ${esc(APP_NAME)}</p>`;
   $('#expJson').onclick=exportJSON; $('#expCsv').onclick=exportCSV;
   $('#impJson').onchange=importJSON; $('#impComps').onchange=importComps;
   bindGoogleSection();
