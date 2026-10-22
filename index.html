@@ -74,7 +74,6 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:.2px;margin:0}
 .stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center}
 .stat b{display:block;font:700 1.25rem var(--serif);color:var(--deep)}
 .stat span{font-size:var(--fs-sec);color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
-@media (min-width:560px){.stats{grid-template-columns:repeat(5,1fr)}}
 .alert{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:var(--red-bg);color:var(--red);
   border:1.5px solid #f0b4aa;border-radius:14px;padding:12px 14px;font:600 var(--fs-body) var(--sans);margin:10px 0}
 .alert .x{font-size:1.25rem;line-height:1}
@@ -92,7 +91,6 @@ select,input,textarea{font:var(--fs-body) var(--sans);color:var(--ink)}
 .sel{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:0 10px}
 .items{display:grid;gap:12px;margin:12px 0 20px}
 .items.grid{grid-template-columns:repeat(2,1fr)}
-@media (min-width:600px){.items.grid{grid-template-columns:repeat(3,1fr)}}
 .card{position:relative;display:block;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
   text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(0,0,0,.03)}
 .card .thumb{aspect-ratio:4/5;background:#efe4d4;display:flex;align-items:center;justify-content:center;color:var(--muted)}
@@ -307,6 +305,55 @@ code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:var(--fs-sec
 .anote{font-size:var(--fs-body);color:var(--ink);margin:0 0 14px}
 .shopbar{margin:6px 0 0}.shopbar:empty{display:none}
 .backlink{display:inline-flex;align-items:center;min-height:var(--tap-min);font:600 var(--fs-body) var(--sans);color:var(--deep);text-decoration:none}
+/* HH-FoldSize (2026-10-21): foldable inner screens (unfolded ~560-959px wide) and wider get a BIGGER app, not more columns.
+   Phones under 560px are untouched (guarded by /workspace/vltest/foldsize-test.js phone fingerprint).
+   Root 16px -> 20px (+25%) so every rem size grows (body 20, secondary 17.5, badge 16.25); tap 48 -> 60, small tap 44 -> 56; px sizes below scaled by hand.
+   Grid stays 2 columns and stats stay 3 per row (6 stats = 3 + 3) until 960px; from 960px: 3-column grid, 6 stats in a row, container 1000px centered. */
+@media (min-width:560px){
+  html{font-size:125%}
+  :root{--tap:60px;--tap-min:56px;--radius:18px}
+  .wrap{max-width:1000px;padding:0 20px}
+  .bar{margin:0 -20px 14px;padding-left:20px;padding-right:20px}
+  .gallery{margin:0 -20px;padding:0 20px 8px}
+  body{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+  .sticky-save{bottom:calc(104px + env(safe-area-inset-bottom))}
+  .stats{gap:10px}.stat{padding:12px 8px}
+  .items{gap:16px}
+  .card .ci{padding:10px 12px 12px}
+  .pc{padding:3px 8px}
+  .pchips{gap:6px}
+  .items.list .card .thumb,.ccard .clink .thumb{width:130px;flex-basis:130px;min-height:150px}
+  .sel{min-height:var(--tap-min)}
+  .nav a{min-height:64px}
+  .nav a .i{font-size:1.375rem}
+  .nav a.add .plus{width:72px;height:72px;margin-top:-32px}
+  .f textarea,textarea.inp{min-height:110px}
+  .aibtn{min-height:64px}
+  .aispin{width:26px;height:26px}
+  #aiGsi{min-height:56px}
+  .gallery img{height:440px;max-width:70vw}
+  .nophoto{height:220px}
+  details.ce summary,details.ed>summary{min-height:var(--tap-min)}
+  .cseg button{min-height:64px}
+  .aseg button{min-height:var(--tap)}
+  .fp-links a.btn{min-height:var(--tap)}
+  .cfrow .btn{min-width:120px}
+  .sites input,.row input[type=checkbox]{width:28px!important;height:28px!important}
+  .top h1 .about-i{width:34px;height:34px}
+  .acct img,.acct .ini{width:38px;height:38px}
+  .acct .nm{max-width:140px}
+  .av{width:56px;height:56px;flex-basis:56px}
+  .dot{width:11px;height:11px}
+  #soldP{width:120px!important}
+  .bar>span[style*="width:70px"]{width:90px!important}
+  .sheet-in,.postask{max-width:720px}
+  .postask{bottom:calc(84px + env(safe-area-inset-bottom))}
+  .about-pop{max-width:480px}
+}
+@media (min-width:960px){
+  .items.grid{grid-template-columns:repeat(3,1fr)}
+  .stats{grid-template-columns:repeat(6,1fr)}
+}
 </style>
 </head>
 <body>
