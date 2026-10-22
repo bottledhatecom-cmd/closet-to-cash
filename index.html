@@ -270,6 +270,24 @@ code{background:#f3e9da;padding:1px 4px;border-radius:4px;font-size:var(--fs-sec
 @media (max-width:380px){.photos{grid-template-columns:repeat(2,1fr)}.stats{gap:6px}.stat{padding:10px 4px}}
 /* comps tables: let headers and ranges wrap on phones so all columns fit without sideways scrolling */
 @media (max-width:520px){.ctable th,.rtable th{white-space:normal;letter-spacing:0;vertical-align:bottom}.ctable td,.ctable th,.rtable td,.rtable th{padding-left:3px;padding-right:3px}.ctable td{white-space:normal}.ctable th,.rtable th{text-transform:none}.ctable .clab{white-space:normal}}
+/* My Accounts (HH-Accounts) */
+.acard{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:0 0 14px;border-top:5px solid var(--pc,#999)}
+.acard .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.acard h3{font-size:1.1875rem}
+.astat{font:700 var(--fs-body) var(--sans);padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:#fff}
+.astat.on{background:var(--sage-bg);border-color:#b9cdb2;color:#35502f}
+.aseg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px}
+.aseg button{appearance:none;border:0;background:#fff;color:var(--ink);min-height:48px;padding:4px 6px;font:600 var(--fs-body)/1.15 var(--sans);cursor:pointer;touch-action:manipulation}
+.aseg button+button{border-left:1px solid var(--line)}
+.aseg button.on[data-as=no]{background:#eee6da;box-shadow:inset 0 -4px 0 var(--muted)}
+.aseg button.on[data-as=yes]{background:#35502f;color:#fff}
+.acard .f input{font-size:var(--fs-body)}
+.acard .opt{font-style:normal;font-weight:400}
+.pwnote{background:var(--sage-bg);border:1px solid #b9cdb2;border-radius:var(--radius);padding:12px 14px;margin:0 0 12px;font-size:var(--fs-body);color:var(--ink)}
+.pwnote .btn{margin-top:10px}
+.anote{font-size:var(--fs-body);color:var(--ink);margin:0 0 14px}
+.shopbar{margin:6px 0 0}.shopbar:empty{display:none}
+.backlink{display:inline-flex;align-items:center;min-height:var(--tap-min);font:600 var(--fs-body) var(--sans);color:var(--deep);text-decoration:none}
 </style>
 </head>
 <body>
@@ -902,12 +920,13 @@ async function refresh(){ ITEMS=await getAllItems(); }
 function route(){
   revokeAll();
   const h=location.hash.replace(/^#\/?/,''), [v,id]=h.split('/');
-  $$('#nav a').forEach(a=>a.classList.toggle('on', (a.dataset.nav==='inv'&&(!v||v==='item')) || a.dataset.nav===v || (a.dataset.nav==='add'&&v==='edit')));
+  $$('#nav a').forEach(a=>a.classList.toggle('on', (a.dataset.nav==='inv'&&(!v||v==='item')) || a.dataset.nav===v || (a.dataset.nav==='add'&&v==='edit') || (a.dataset.nav==='backup'&&v==='accounts')));
   window.scrollTo(0,0);
   if(v==='add') return renderForm(null);
   if(v==='edit') return renderForm(id);
   if(v==='item') return renderDetail(id);
   if(v==='backup') return renderBackup();
+  if(v==='accounts') return renderAccounts();
   return renderInventory();
 }
 
@@ -921,6 +940,7 @@ function renderInventory(){
   <section class="stats" id="stats"></section>
   <div id="globalAlert"></div>
   <div class="chips closets" id="closets" role="tablist" aria-label="Closets"></div>
+  <div class="shopbar" id="shopBar"></div>
   <input class="search" id="q" type="search" placeholder="Search brand, SKU, keyword\u2026" value="${esc(UI.q)}" autocomplete="off">
   <div class="chips" id="filters" role="group" aria-label="Filter by status"></div>
   <div class="row between">
@@ -940,6 +960,91 @@ function renderInventory(){
 }
 // Closets: 'all' + the sites she uses + any site where an item already has a status.
 const closetKeys = () => ['all',...PKEYS.filter(k=>activeKeys().includes(k)||ITEMS.some(it=>siteState(it,k)!=='none'))];
+/* ---------- My Accounts (HH-Accounts) ----------
+   PRIVATE: usernames + shop links live only in IndexedDB meta 'accounts' on this phone and in her own backups
+   (Google Drive appDataFolder inventory, or the JSON file she exports). They are never sent anywhere else.
+   NO passwords, ever: there is no password field; we point to Google Password Manager instead. */
+const PW_MANAGER_URL='https://passwords.google.com/';
+const ACCT_SITES={
+  poshmark:{signup:'https://poshmark.com/signup', shop:u=>`https://poshmark.com/closet/${u}`, eg:'poshmark.com/closet/yourname'},
+  mercari:{signup:'https://www.mercari.com/signup/'},
+  vinted:{signup:'https://www.vinted.com/member/register/select_type'},
+  depop:{signup:'https://www.depop.com/signup/', shop:u=>`https://www.depop.com/${u}/`, eg:'depop.com/yourname'},
+  ebay:{signup:'https://signup.ebay.com/pa/crte', shop:u=>`https://www.ebay.com/usr/${u}`, eg:'ebay.com/usr/yourname'},
+  etsy:{signup:'https://www.etsy.com/join', shop:u=>`https://www.etsy.com/shop/${u}`, eg:'etsy.com/shop/YourShopName', nameLabel:'Shop name'},
+  facebook:{signup:'https://www.facebook.com/r.php', nameLabel:'Name on Facebook', help:'Marketplace uses your Facebook account. Optional: paste your Marketplace profile link.'},
+  grailed:{signup:'https://www.grailed.com/users/sign_up'},
+};
+const ACCT={v:1,updatedAt:0,sites:{}};
+const cleanUsername=v=>cleanTitle(String(v??'')).replace(/^@+/,'').replace(/\s+/g,'').slice(0,60);
+const acctAuto=(k,u)=>{ const S=ACCT_SITES[k]; return S&&S.shop&&u?S.shop(encodeURIComponent(u)):''; };
+const fixLink=v=>{ let t=String(v??'').trim(); if(t&&!/^[a-z]+:/i.test(t)&&/^[^\s/]+\.[^\s]+$/.test(t)) t='https://'+t; t=safeUrl(t); return /\s/.test(t)||t.length>300?'':t; };
+function normAcctSite(k,o){
+  if(!o||typeof o!=='object') return null;          // only whitelisted fields survive (anything else, e.g. a stray "password", is dropped)
+  const username=cleanUsername(o.username??o.user??o.handle??'');
+  let link=fixLink(o.link??o.url??o.shopUrl??''), linkAuto=false; const auto=acctAuto(k,username);
+  if(auto&&(o.linkAuto===true||!link)){ link=auto; linkAuto=true; } else linkAuto=!!auto&&link===auto;
+  const signedUp=typeof o.signedUp==='boolean'?o.signedUp:(/^signed.?up$/i.test(String(o.status||''))||!!username||!!link);
+  if(!signedUp&&!username&&!link) return null;
+  return {signedUp,username,link,linkAuto};
+}
+function migrateAccounts(raw){   // any shape (old backup = undefined) -> {v:1,updatedAt,sites}
+  const src=raw&&typeof raw==='object'?(raw.sites&&typeof raw.sites==='object'?raw.sites:raw):{}, sites={};
+  for(const k of PKEYS){ const n=normAcctSite(k,src[k]); if(n) sites[k]=n; }
+  return {v:1,updatedAt:Math.max(0,Number(raw&&raw.updatedAt)||0),sites};
+}
+const acctSnapshot=()=>JSON.parse(JSON.stringify({v:1,updatedAt:ACCT.updatedAt,sites:ACCT.sites}));
+const acct=k=>ACCT.sites[k]||{signedUp:false,username:'',link:'',linkAuto:false};
+const hasAcct=k=>!!ACCT.sites[k];
+const shopUrl=k=>safeUrl(acct(k).link);
+const acctKeys=()=>PKEYS.filter(k=>activeKeys().includes(k)||ITEMS.some(it=>siteState(it,k)!=='none')||hasAcct(k));
+async function loadAccounts(){ try{ Object.assign(ACCT,migrateAccounts(await getMeta('accounts'))); }catch(e){} }
+async function applyAccounts(raw){ const a=migrateAccounts(raw); ACCT.updatedAt=a.updatedAt; ACCT.sites=a.sites; await setMeta('accounts',acctSnapshot()); }
+async function saveAcct(k,a){
+  if(!a.signedUp&&!a.username&&!a.link) delete ACCT.sites[k]; else ACCT.sites[k]={signedUp:!!a.signedUp,username:a.username||'',link:a.link||'',linkAuto:!!a.linkAuto};
+  ACCT.updatedAt=Date.now(); await setMeta('accounts',acctSnapshot()); markDirty();
+}
+function acctCardHTML(k){
+  const P=PLATFORMS[k], S=ACCT_SITES[k]||{}, a=acct(k), link=safeUrl(a.link), nl=S.nameLabel||'Username';
+  const hint=S.shop?`Your link fills in from your ${nl.toLowerCase()} (${esc(S.eg)}). You can change it.`:(S.help||`Optional: open your profile in the ${esc(P.name)} app, tap Share, copy the link and paste it here.`);
+  return `<section class="acard" data-a="${k}" style="--pc:${P.color}">
+  <div class="hd"><h3>${esc(P.name)}</h3><span class="astat ${a.signedUp?'on':''}" data-astat>${a.signedUp?'\u2713 Signed up':'Not signed up'}</span></div>
+  <div class="aseg" role="group" aria-label="${esc(P.name)} account"><button type="button" data-as="no" class="${a.signedUp?'':'on'}" aria-pressed="${!a.signedUp}">Not signed up</button><button type="button" data-as="yes" class="${a.signedUp?'on':''}" aria-pressed="${a.signedUp}">Signed up</button></div>
+  <label class="f"><span>${esc(nl)} <i class="opt">(optional)</i></span><input class="inp" data-af="username" value="${esc(a.username)}" maxlength="60" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(P.name)} ${esc(nl.toLowerCase())}"></label>
+  <label class="f"><span>Shop / profile link <i class="opt">(optional)</i></span><input class="inp" type="url" data-af="link" value="${esc(a.link)}" maxlength="300" inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://\u2026" aria-label="${esc(P.name)} shop or profile link"></label>
+  <p class="note">${hint}</p>
+  <div class="pbtns"><a class="btn sm primary" data-asignup href="${S.signup||'#'}" target="_blank" rel="noopener" style="${a.signedUp?'display:none':''}">Sign up on ${esc(P.name)} \u2197</a><a class="btn sm ${a.signedUp?'primary':''}" data-ashop href="${esc(link||'#')}" target="_blank" rel="noopener noreferrer" style="${link?'':'display:none'}">Open my shop \u2197</a></div>
+</section>`;
+}
+function paintAcct(card){
+  const k=card.dataset.a, a=acct(k), link=safeUrl(a.link), st=$('[data-astat]',card);
+  st.textContent=a.signedUp?'\u2713 Signed up':'Not signed up'; st.classList.toggle('on',a.signedUp);
+  $$('[data-as]',card).forEach(b=>{ const on=(b.dataset.as==='yes')===a.signedUp; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); });
+  $('[data-asignup]',card).style.display=a.signedUp?'none':'';
+  const sh=$('[data-ashop]',card); sh.style.display=link?'':'none'; sh.href=link||'#'; sh.classList.toggle('primary',a.signedUp);
+}
+function renderAccounts(){
+  document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const keys=acctKeys();
+  $('#app').innerHTML=`
+  <header class="top"><a class="backlink" href="#/backup">\u2039 Settings</a><h1>My accounts</h1><p class="tag">your selling sites in one place</p></header>
+  <div class="pwnote" id="pwNote"><b>\ud83d\udd12 No passwords here, ever.</b> To keep your logins safe, let Google Password Manager save them (Chrome offers when you sign in), then see them any time at passwords.google.com.
+    <a class="btn sm block" id="pwLink" href="${PW_MANAGER_URL}" target="_blank" rel="noopener noreferrer">Open Google Password Manager \u2197</a></div>
+  <p class="anote">Usernames and links are private: they stay on this phone and in your own Google Drive backup.</p>
+  <div id="acctList">${keys.map(acctCardHTML).join('')}</div>
+  <p class="anote">Missing a site? Turn it on in <a href="#/backup">Settings \u2192 Your selling sites</a>.</p>`;
+  const list=$('#acctList');
+  list.addEventListener('click',e=>{ const b=e.target.closest('[data-as]'); if(!b) return; const card=b.closest('.acard'), k=card.dataset.a, a={...acct(k)};
+    a.signedUp=b.dataset.as==='yes'; saveAcct(k,a); paintAcct(card); });
+  list.addEventListener('input',e=>{ const inp=e.target.closest('[data-af]'); if(!inp) return; const card=inp.closest('.acard'), k=card.dataset.a, a={...acct(k)};
+    if(inp.dataset.af==='username'){ a.username=cleanUsername(inp.value); const auto=acctAuto(k,a.username);
+      if(ACCT_SITES[k]&&ACCT_SITES[k].shop&&(a.linkAuto||!a.link)){ a.link=auto; a.linkAuto=!!auto; $('[data-af=link]',card).value=auto; }
+      if(a.username&&!a.signedUp&&!hasAcct(k)) a.signedUp=true;   // typing a username means she has the account
+    } else { a.link=fixLink(inp.value); a.linkAuto=!!a.link&&a.link===acctAuto(k,a.username); }
+    saveAcct(k,a); paintAcct(card); });
+  list.addEventListener('change',e=>{ const inp=e.target.closest('[data-af]'); if(!inp) return; const a=acct(inp.closest('.acard').dataset.a);
+    const v=inp.dataset.af==='username'?a.username:a.link; if(inp.value.trim()&&!v&&inp.dataset.af==='link') toast('That link doesn\u2019t look right \u2014 it should start with https://'); else inp.value=v; });
+}
 function setCloset(k){ if(!closetKeys().includes(k)) k='all'; const was=UI.closet; UI.closet=k; try{ localStorage.setItem('ctc-closet',k); }catch(e){}
   if(was!==k){ if(k==='all'&&UI.filter==='none') UI.filter='unlisted'; else if(k!=='all'&&UI.filter==='unlisted') UI.filter='none'; } }
 // Filter tests. All closet: item-wide state. Site closet: that site's state ("Not posted" = not on this site and not sold anywhere).
@@ -977,6 +1082,8 @@ function renderList(){
     const nm=k==='all'?'All':PLATFORMS[k].name, al=k==='all'?`All items, ${n}`:`${nm} closet, ${n} listed`;
     return `<button type="button" role="tab" class="chip closet ${C===k?'on':''}" data-closet="${k}" aria-selected="${C===k}" aria-label="${esc(al)}">${esc(nm)}<span class="n">${n}</span></button>`; }).join('');
   $('#filters').innerHTML=closetFilters(C).map(([k,l])=>`<button type="button" class="chip ${k==='delist'?'warn':''} ${UI.filter===k?'on':''}" data-f="${k}" aria-pressed="${UI.filter===k}">${l}<span class="n">${closetCount(C,k)}</span></button>`).join('');
+  { const sb=$('#shopBar'), nm=isAll?'':PLATFORMS[C].name, u=isAll?'':shopUrl(C);
+    sb.innerHTML=isAll?'':u?`<a class="btn sm" id="openShop" href="${esc(u)}" target="_blank" rel="noopener noreferrer">Open my ${esc(nm)} shop \u2197</a>`:`<a class="btn sm ghost" id="addShop" href="#/accounts">Add my ${esc(nm)} shop link \u203a</a>`; }
   $('#viewT').style.display=isAll?'':'none';   // site closets are always one card per row (big status buttons)
   const list=closetList(C,UI.filter,UI.q,UI.sort);
   const el=$('#list');
@@ -1209,7 +1316,7 @@ function showChecklist(p,copied,photoMode,opened,needOpen){
   el.hidden=false;
   el.innerHTML=`<p class="stepcard"><b>${head}</b></p>${firstDl}${openHint}<ol>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>
     <div class="pbtns">${isD?'':'<button class="btn sm" data-cl="t">Copy title</button>'}<button class="btn sm ${isD?'':'primary'}" data-cl="d">Copy description</button>
-    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a>
+    ${P.tagsMax?'<button class="btn sm" data-cl="g">Copy tags</button>':''}<a class="btn sm ${opened?'':'primary'} openSite" href="${P.create}" target="_blank" rel="noopener">Open ${esc(P.name)} \u2197</a>${shopUrl(p)?`<a class="btn sm openShop" href="${esc(shopUrl(p))}" target="_blank" rel="noopener noreferrer">Open my shop \u2197</a>`:''}
     ${n?`<button class="btn sm" data-cl="save">\u2b07 Save photos again</button><button class="btn sm ghost" data-cl="share">\u2934 Share photos\u2026</button>`:''}</div>
     <button class="btn primary block" data-cl="done" style="margin-top:8px">\u2713 I published it \u2014 mark Listed on ${esc(P.name)}</button>`;
   $('.openSite',el).addEventListener('click',()=>{ try{ localStorage.setItem(DL_OK_KEY,'1'); }catch(e){} });
@@ -1561,9 +1668,11 @@ function planBackup(local,remote,remotePhotoFiles){
   const items=[...win.values()].map(w=>stripItem(w.item)).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   photos.sort((a,b)=>a.id<b.id?-1:1);
   const skuCounter=Math.max(local.sku||0,(remote&&remote.skuCounter)||0);
-  const contentHash=hashStr(JSON.stringify({items,photos,tomb,skuCounter}));
+  // accounts (usernames/shop links): newest updatedAt wins; only hashed/stored once she has used My accounts
+  const la=migrateAccounts(local.accounts), ra=migrateAccounts(remote&&remote.accounts), accounts=ra.updatedAt>la.updatedAt?ra:la;
+  const contentHash=hashStr(JSON.stringify(accounts.updatedAt?{items,photos,tomb,skuCounter,accounts}:{items,photos,tomb,skuCounter}));
   const unchanged=!!remote&&remote.contentHash===contentHash&&!upload.length&&!deleteFiles.length;
-  return {inventory:{format:'closet-to-cash-drive',version:1,app:APP_NAME,updatedAt:Date.now(),contentHash,skuCounter,items,photos,tombstones:tomb},upload,deleteFiles,unchanged,
+  return {inventory:{format:'closet-to-cash-drive',version:1,app:APP_NAME,updatedAt:Date.now(),contentHash,skuCounter,items,photos,tombstones:tomb,...(accounts.updatedAt?{accounts}:{})},upload,deleteFiles,unchanged,
     cloudOnly:items.filter(i=>!local.items.some(l=>l.id===i.id)).length};
 }
 function planRestore(localItems,remote){
@@ -1603,7 +1712,7 @@ async function backupNow({reason='manual'}={}){
     const invFile=files.find(f=>f.name===DRIVE_INV_NAME);
     const rp=new Map(); files.filter(f=>f.appProperties&&f.appProperties.kind==='photo').forEach(f=>rp.set(f.appProperties.photoId,f));
     const remote=invFile?await (await driveDownload(invFile.id,o)).json():null;
-    const local={items:await getAllItems(),photos:await getAllPhotos(),tomb:(await getMeta('tombstones'))||{},sku:(await getMeta('sku'))||0};
+    const local={items:await getAllItems(),photos:await getAllPhotos(),tomb:(await getMeta('tombstones'))||{},sku:(await getMeta('sku'))||0,accounts:(await getMeta('accounts'))||null};
     for(const p of local.photos) if(!p.hash){ p.hash=await hashBuf(p.buf); await reqP(os('photos','readwrite').put(p)); }
     const plan=planBackup(local,remote,rp);
     let up=0;
@@ -1636,8 +1745,9 @@ async function restoreFromDrive({confirmFn=confirm}={}){
     if(!invFile){ setSync('ok',''); toast('No Google Drive backup found yet'); return {done:false,reason:'none'}; }
     const remote=await (await driveDownload(invFile.id,o)).json();
     const local=await getAllItems(), plan=planRestore(local,remote);
-    if(!plan.add.length&&!plan.update.length){ setSync('ok',''); toast('This device already has everything in your backup'); return {done:false,reason:'uptodate',plan}; }
-    const msg=`Restore from Google Drive?\n\n\u2022 ${plan.add.length} item(s) will be added\n\u2022 ${plan.update.length} item(s) are newer in Drive and will REPLACE the copy on this phone${plan.update.length?' ('+plan.update.slice(0,5).map(u=>u.local.sku).join(', ')+(plan.update.length>5?'\u2026':'')+')':''}\n\u2022 ${plan.keepLocal.length} item(s) are newer here and will be kept\n\nItems that are only on this phone are never deleted.`;
+    const accNew=!!remote.accounts&&migrateAccounts(remote.accounts).updatedAt>ACCT.updatedAt;   // old backups have no accounts: keep this phone's
+    if(!plan.add.length&&!plan.update.length&&!accNew){ setSync('ok',''); toast('This device already has everything in your backup'); return {done:false,reason:'uptodate',plan}; }
+    const msg=`Restore from Google Drive?\n\n\u2022 ${plan.add.length} item(s) will be added\n\u2022 ${plan.update.length} item(s) are newer in Drive and will REPLACE the copy on this phone${plan.update.length?' ('+plan.update.slice(0,5).map(u=>u.local.sku).join(', ')+(plan.update.length>5?'\u2026':'')+')':''}\n\u2022 ${plan.keepLocal.length} item(s) are newer here and will be kept${accNew?'\n\u2022 Your My accounts list (usernames, shop links) is newer in Drive and will replace this phone\u2019s':''}\n\nItems that are only on this phone are never deleted.`;
     if(!confirmFn(msg)){ setSync('ok',''); return {done:false,reason:'cancelled',plan}; }
     const fileByPhoto=new Map(files.filter(f=>f.appProperties&&f.appProperties.kind==='photo').map(f=>[f.appProperties.photoId,f]));
     const tomb=(await getMeta('tombstones'))||{};
@@ -1664,8 +1774,9 @@ async function restoreFromDrive({confirmFn=confirm}={}){
     }
     await setMeta('tombstones',tomb);
     if((remote.skuCounter||0)>((await getMeta('sku'))||0)) await setMeta('sku',remote.skuCounter);
+    if(accNew) await applyAccounts(remote.accounts);
     SYNC.suspend=false;
-    await refresh(); setSync('ok',''); toast(`Restored ${jobs.length} item(s) from Google Drive`);
+    await refresh(); setSync('ok',''); toast(`Restored ${jobs.length} item(s)${accNew?' + your accounts':''} from Google Drive`);
     return {done:true,plan};
   }catch(err){ SYNC.suspend=false; setSync(err instanceof AuthNeeded?'auth':'error',err.message||String(err)); throw err; }
   finally{ SYNC.running=false; if(SYNC.dirty&&autoBackupOn()) markDirty(); }
@@ -1730,6 +1841,10 @@ function renderBackup(){
   $('#app').innerHTML=`
   <header class="top"><h1>Backup &amp; settings</h1><p class="tag">your items live on this phone${Auth.signedIn()?' + your Google Drive':''}</p></header>
   ${googleSectionHTML()}
+  <fieldset id="acctBox"><legend>My accounts</legend>
+    <a class="btn block" id="acctLink" href="#/accounts">\ud83d\udc64 My accounts \u203a</a>
+    <p class="note">Sign-up links, your usernames and shop links for each site. No passwords.</p>
+  </fieldset>
   <fieldset class="sites"><legend>Your selling sites</legend>
     ${PKEYS.map(k=>`<label><input type="checkbox" data-site="${k}" ${activeKeys().includes(k)?'checked':''}> <span><b>${PLATFORMS[k].name}</b> <span class="hint">\u00b7 ${POST_MODES[PLATFORMS[k].mode].short}</span></span></label>`).join('')}
     <p class="note">Only checked sites show on items and in price comparisons. Bot sites aren\u2019t connected yet \u2014 you can post those yourself too.</p>
@@ -1764,7 +1879,7 @@ const stamp=()=>new Date().toISOString().slice(0,10);
 const slug=APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g,'-');
 async function buildBackupBlob(){
   const photos=await getAllPhotos(), parts=[];
-  const head=JSON.stringify({app:APP_NAME,format:'closet-to-cash-backup',version:1,exportedAt:new Date().toISOString(),skuCounter:(await getMeta('sku'))||0,items:ITEMS});
+  const head=JSON.stringify({app:APP_NAME,format:'closet-to-cash-backup',version:1,exportedAt:new Date().toISOString(),skuCounter:(await getMeta('sku'))||0,...(ACCT.updatedAt?{accounts:acctSnapshot()}:{}),items:ITEMS});
   parts.push(head.slice(0,-1)+',"photos":[');
   for(let i=0;i<photos.length;i++){ const p=photos[i]; parts.push((i?',':'')+JSON.stringify({id:p.id,itemId:p.itemId,idx:p.idx,data:await blobToDataURL(photoBlob(p))})); }
   parts.push(']}');
@@ -1790,7 +1905,9 @@ async function importJSON(e){
   try{
     const d=JSON.parse(await f.text());
     if(!d||!Array.isArray(d.items)) throw new Error('Not a backup file');
-    if(!confirm(`Import ${d.items.length} items and ${(d.photos||[]).length} photos into this device?`)) return;
+    const accNew=!!d.accounts&&migrateAccounts(d.accounts).updatedAt>ACCT.updatedAt;   // old backups have no accounts: keep this phone's
+    if(!confirm(`Import ${d.items.length} items and ${(d.photos||[]).length} photos${accNew?' (and your My accounts list)':''} into this device?`)) return;
+    if(accNew){ await applyAccounts(d.accounts); markDirty(); }
     const tb=(await getMeta('tombstones'))||{}; for(const it of d.items){ if(it.id) delete tb[it.id]; } await setMeta('tombstones',tb);
     for(const it of d.items){ if(!it.id) continue; migrateItem(it); if(it.comps) try{ it.comps=normalizeComps(it.comps); }catch(_){ it.comps={}; } await putItem(it); }
     for(const p of (d.photos||[])){ if(!p.id||!p.data) continue; const {buf,type}=dataURLToBuf(p.data); await putPhoto({id:p.id,itemId:p.itemId,idx:p.idx||0,type,buf}); }
@@ -1836,7 +1953,7 @@ async function migrateAll(){ let n=0;
     const l=document.createElement('link'); l.rel='manifest'; l.href='manifest.webmanifest'; document.head.appendChild(l);
     if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(e=>console.warn('SW registration failed',e)));
   }
-  try{ db=await openDB(); await refresh(); await migrateAll(); }
+  try{ db=await openDB(); await refresh(); await migrateAll(); await loadAccounts(); }
   catch(err){ $('#app').innerHTML=`<div class="empty"><h2>Storage unavailable</h2><p>${esc(err.message)}. Private browsing or some file previewers block storage \u2014 open this page in Safari/Chrome normally.</p></div>`; return; }
   Auth.load();
   try{ SYNC.last=(await getMeta('lastBackup'))||null; }catch(e){}
