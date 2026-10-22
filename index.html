@@ -137,6 +137,25 @@ legend{font:600 1.0625rem var(--serif);color:var(--deep);padding:0 6px}
 .pickers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pick{position:relative;overflow:hidden}
 .pick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.aibox{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+.aibtn{font-size:1.0625rem;min-height:52px}
+.plusb{font:700 var(--fs-badge) var(--sans);background:#fff;color:var(--rust);border-radius:999px;padding:2px 8px;letter-spacing:.3px}
+.aimsg{margin:10px 0 0;padding:12px 14px;border-radius:14px;font-size:var(--fs-body);line-height:1.45;background:#fff;border:1px solid var(--line)}
+.aimsg.err{background:var(--red-bg);border-color:#f0b4aa;color:#7d2a22}
+.aimsg.ok{background:var(--sage-bg);border-color:#b9cdb2;color:#2f4729}
+.aimsg b{font-weight:700}
+.aiquota{display:block;margin-top:6px;font-size:var(--fs-sec);font-weight:600}
+.aispin{display:inline-block;width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--rust);border-radius:50%;animation:aispin .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes aispin{to{transform:rotate(360deg)}}
+.qcards{display:grid;gap:10px;margin-top:10px}
+.qcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.qcard .qq{font:600 1.0625rem var(--sans);margin:0 0 8px;line-height:1.35}
+.qcard .qo{display:flex;flex-wrap:wrap;gap:8px}
+.qcard .qo .chip{font-size:var(--fs-body);min-height:var(--tap)}
+.qcard.done{background:var(--sage-bg);border-color:#b9cdb2}
+.qcard .qa{font-size:var(--fs-body);font-weight:600;color:#2f4729}
+.aifill{background:#fff8e6!important;border-color:#e3c26b!important}
+#aiGsi{margin-top:10px;min-height:44px}#aiGsi:empty{display:none}
 .sticky-save{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));padding:10px 0;background:linear-gradient(transparent,var(--cream) 35%)}
 .gallery{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -14px;padding:0 14px 6px}
 .gallery img{height:300px;max-width:80vw;object-fit:cover;border-radius:14px;scroll-snap-align:start;flex:0 0 auto;background:#efe4d4}
@@ -313,7 +332,12 @@ const DB_NAME = 'closet-to-cash-db';   // kept from the app's first name so exis
    Empty = Google backup button shows disabled "coming soon". Google's script only loads when she taps Sign in. */
 const GOOGLE_CLIENT_ID = '196912346158-dasm934sl5l3ggd6fgr409fei0bkho82.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.appdata';
-const AUTO_BACKUP_DELAY_MS = 10000;   // auto backup this long after the last edit (and when the app is hidden)
+const AUTO_BACKUP_DELAY_MS = 10000;
+/* AI drafts ("Draft with AI", Hanger Hustle Plus). Server: /workspace/hh-ai-server (Cloudflare Worker). It checks the Google
+   ID token (same client id), Plus, the monthly cap and the kill switch; the Gemini key lives only on the server.
+   Photos sent for a draft go to Google Gemini and are not stored by Hanger Hustle. */
+const AI_URL = 'https://hh-ai-server.bottledhate-com.workers.dev';
+const AI_IMG_PX = 768, AI_IMG_MAX_BYTES = 290000, AI_MAX_PHOTOS = 4, AI_TIMEOUT_MS = 60000;   // server limit is 300000 bytes per photo   // auto backup this long after the last edit (and when the app is hidden)
 
 const TYPES = ['dress','top','blouse','jacket','coat','jeans','pants','skirt','sweater','t-shirt','shoes','bag','accessory','other'];
 const TYPE_LABEL = {'t-shirt':'T-Shirt'};
@@ -560,9 +584,10 @@ function generate(p,it){
   const sizeLine = it.size ? `Size on tag: ${it.size} (vintage sizing runs small \u2014 please go by measurements).` : 'No size tag \u2014 please go by measurements.';
   const basics = [it.brand&&`Brand: ${it.brand}`, it.era&&it.era!=='Unknown'&&`Era: ${it.era}`, it.color&&`Color: ${it.color}`, it.material&&`Material: ${it.material}`].filter(Boolean);
   let title, desc;
+  const aiD=it.aiDesc?cleanText(it.aiDesc):'';
   if(p==='poshmark'){
     title=buildTitle(it,P.titleMax);
-    desc=[`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine,
+    desc=[aiD||`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine,
       ...(meas.length?['','Measurements (laid flat):',...meas]:[]),
       '', `Condition: ${condSentence(it)}`, '', 'Bundle & save! Ships fast.', `SKU ${it.sku||''}`].join('\n');
   } else if(p==='ebay'){
@@ -571,7 +596,7 @@ function generate(p,it){
       ['Decade',it.era&&it.era!=='Unknown'?it.era:''],['Style',kws.join(', ')],
       ['Condition',it.condition==='nwt'?'New with tags':'Pre-owned \u2014 '+(condLabel(it.condition)||'see description')],
       ['Pit to pit',it.pit],['Length',it.length],['Waist',it.waist],['Inseam',it.inseam],['SKU',it.sku]].filter(x=>x[1]!=null&&x[1]!=='');
-    desc=[`${lead}${it.color?' in '+it.color.toLowerCase():''}.`, '', condSentence(it), '', sizeLine,
+    desc=[aiD||`${lead}${it.color?' in '+it.color.toLowerCase():''}.`, '', condSentence(it), '', sizeLine,
       ...(meas.length?['','Measurements (taken flat):',...meas]:[]),
       '', '\u2014 ITEM SPECIFICS \u2014', ...spec.map(([k,v])=>`${k}: ${v}${['Pit to pit','Length','Waist','Inseam'].includes(k)&&isNum(v)?'"':''}`),
       '', 'Please review all photos \u2014 they are part of the description. Ships within 1 business day.'].join('\n');
@@ -579,30 +604,31 @@ function generate(p,it){
     // Depop has no separate title field: the first line of the description acts as the headline.
     const tags=[...new Set(['vintage', it.era&&it.era!=='Unknown'?it.era:'', it.brand, it.type, ...kws].filter(Boolean).map(tagify).filter(t=>t.length>2))].slice(0,5);
     title=`${it.era&&it.era!=='Unknown'?it.era+' ':'vintage '}${it.brand?it.brand+' ':''}${it.color?it.color+' ':''}${ty}`.toLowerCase().replace(/\s+/g,' ').trim();
-    desc=[`${title} \u2728`, kws.length?kws.join(' \u00b7 ').toLowerCase():'', '',
+    desc=[`${title} \u2728`, ...(aiD?['',aiD]:[]), kws.length?kws.join(' \u00b7 ').toLowerCase():'', '',
       it.size?`size on tag: ${it.size} \u2014 check measurements`:'no size tag \u2014 check measurements',
       ...measLines(it,'\u21b3 ').map(s=>s.toLowerCase()), it.material?`\u21b3 ${it.material.toLowerCase()}`:'',
       '', `condition: ${condSentence(it).toLowerCase()}`, '', 'bundle for a discount \u2022 ships in 1\u20132 days', '', tags.join(' ')].join('\n');
   } else if(p==='vinted'){
     title=buildTitle(it,P.titleMax);
-    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
+    desc=[aiD||`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
   } else if(p==='etsy'){
     title=buildTitle(it,P.titleMax);
-    desc=[`${lead}${it.color?' in '+it.color.toLowerCase():''}${kws.length?' \u2014 '+kws.slice(0,5).join(', '):''}.`, '',
+    desc=[aiD||`${lead}${it.color?' in '+it.color.toLowerCase():''}${kws.length?' \u2014 '+kws.slice(0,5).join(', '):''}.`, '',
       ...basics, sizeLine, ...(meas.length?['','Measurements (laid flat):',...meas]:[]),
       '', `Condition: ${condSentence(it)}`, 'As a true vintage piece it may show gentle signs of age; please see all photos.',
       '', 'Ships within 1\u20132 business days, carefully packed.', `SKU ${it.sku||''}`].join('\n');
   } else if(p==='facebook'){
     title=buildTitle(it,P.titleMax);
-    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, '', 'Local pickup or shipping available.'].filter(x=>x!=null).join('\n');
+    desc=[aiD||`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, '', 'Local pickup or shipping available.'].filter(x=>x!=null).join('\n');
   } else if(p==='grailed'){
     title=buildTitle(it,60);
-    desc=[`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
+    desc=[aiD||`${lead}.`, ...basics, sizeLine, ...measLines(it,'- '), `Condition: ${condSentence(it)}`, kws.length?`Style: ${kws.join(', ')}`:''].filter(Boolean).join('\n');
   } else {
     title=buildTitle(it,P.titleMax);
-    desc=[`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine, ...measLines(it,'- '),
+    desc=[aiD||`${lead}${kws.length?' \u2014 '+kws.slice(0,4).join(', '):''}.`, '', ...basics, sizeLine, ...measLines(it,'- '),
       '', `Condition: ${condSentence(it)}`, '', 'Ships fast. Offers welcome!', `SKU ${it.sku||''}`].join('\n');
   }
+  if(it.aiTitle&&p!=='depop') title=cleanTitle(it.aiTitle,p==='grailed'?60:P.titleMax);
   desc=desc.replace(/\n{3,}/g,'\n\n').trim();
   const out={title:cleanTitle(title,P.titleMax), desc:clip(cleanText(desc),P.descMax)};
   if(P.tagsMax) out.tags=etsyTags(it).join(', ');
@@ -1147,6 +1173,18 @@ async function renderForm(id){
       </div>
       <div class="photos" id="photos"></div>
       <p class="note" id="photoNote">Photos are resized to ${IMG_MAX_PX}px JPEG to save space. \u2605 sets the cover photo.</p>
+      <div class="aibox" id="aiBox">
+        <button type="button" class="btn rust block aibtn" id="aiBtn">Draft with AI \u2728 <span class="plusb">Plus</span></button>
+        <p class="note" id="aiNote">Uses your first ${AI_MAX_PHOTOS} photos and fills in only the empty boxes. Photos go to Google Gemini to write the draft; Hanger Hustle doesn\u2019t keep them.</p>
+        <div id="aiOut" aria-live="polite"></div>
+        <div id="aiGsi"></div>
+        <div class="qcards" id="aiQs"></div>
+      </div>
+    </fieldset>
+    <fieldset id="aiWords" style="display:${v.aiTitle||v.aiDesc?'block':'none'}"><legend>Title &amp; description (AI draft)</legend>
+      ${inp('aiTitle','Title','maxlength="120"')}
+      <label class="f"><span>Description</span><textarea name="aiDesc" rows="5">${esc(v.aiDesc||'')}</textarea></label>
+      <p class="note">Your listings start from these. Change them here, or per site on the item page.</p>
     </fieldset>
     <fieldset><legend>The piece</legend>
       ${inp('brand','Brand','list="brands" placeholder="e.g. Gunne Sax, Levi\'s, unbranded" autocapitalize="words"')}
@@ -1193,6 +1231,7 @@ async function renderForm(id){
   };
   $('#camIn').addEventListener('change',onFiles); $('#galIn').addEventListener('change',onFiles);
   $('#form').addEventListener('submit',saveForm);
+  aiSetupForm();
 }
 async function saveForm(e){
   e.preventDefault();
@@ -1203,6 +1242,7 @@ async function saveForm(e){
     Object.assign(it,{brand:g('brand'),type:g('type'),era:g('era'),size:g('size'),color:g('color'),material:g('material'),keywords:g('keywords'),
       pit:g('pit'),length:g('length'),waist:g('waist'),inseam:g('inseam'),condition:g('condition'),flaws:g('flaws'),
       cost:num(g('cost')),price:num(g('price')),updatedAt:Date.now()});
+    for(const k of ['aiTitle','aiDesc']){ const val=k==='aiTitle'?cleanTitle(g(k)):cleanText(g(k)); if(val) it[k]=val; else delete it[k]; }
     if(!it.sku) it.sku=await nextSku();
     for(const [i,p] of EDIT.photos.entries()){ const buf=await blobToBuf(p.blob); await putPhoto({id:p.id,itemId:it.id,idx:i,type:p.blob.type||'image/jpeg',buf}); }
     for(const id of EDIT.removed) await delPhoto(id);
@@ -1213,6 +1253,142 @@ async function saveForm(e){
     toast(EDIT.item?'Saved':'Item added \u00b7 '+it.sku);
     location.hash='#/item/'+it.id;
   }catch(err){ console.error(err); toast('Save failed: '+err.message); btn.disabled=false; btn.textContent='Save item'; }
+}
+
+/* ---------- Draft with AI (Hanger Hustle Plus) ----------
+   Fills ONLY empty boxes (never what she typed), then shows tap-to-answer question cards. Server contract: /workspace/hh-ai-server/DEPLOY.md */
+const AI_TEXT=['brand','size','color','material','keywords','flaws','pit','length','waist','inseam','aiTitle','aiDesc'], AI_SELECT=['type','era','condition'];
+const AI_LABEL={brand:'brand',type:'item type',era:'era',condition:'condition',size:'size',color:'color',material:'material',keywords:'style keywords',flaws:'flaws',pit:'pit to pit',length:'length',waist:'waist',inseam:'inseam',aiTitle:'title',aiDesc:'description',price:'price'};
+const AI_NOT_SURE=/not sure|unsure|don.?t know|no idea|can.?t tell|skip|no tag|no label|unknown|i.?ll check|measure later/i;
+function aiField(n){ return document.querySelector(`#form [name="${n}"]`); }
+// A select counts as empty only on a new item she hasn't changed yet (the defaults are placeholders).
+function aiIsEmpty(n){ const el=aiField(n); if(!el) return false; if(AI_SELECT.includes(n)) return !EDIT.item && !EDIT.touched.has(n); return !el.value.trim(); }
+function aiSet(n,val){ const el=aiField(n); if(!el||val==null||val==='') return false; el.value=val; el.classList.add('aifill'); EDIT.aiFilled.add(n); if(n==='aiTitle'||n==='aiDesc') $('#aiWords').style.display='block'; return true; }
+function aiSetupForm(){
+  EDIT.touched=new Set(); EDIT.aiFilled=new Set(); EDIT.aiBusy=false;
+  const f=$('#form'), mark=e=>{ const n=e.target&&e.target.name; if(!n) return; EDIT.touched.add(n); if(EDIT.aiFilled.delete(n)) e.target.classList.remove('aifill'); };
+  f.addEventListener('input',mark); f.addEventListener('change',mark);
+  $('#aiBtn').addEventListener('click',()=>aiDraft());
+}
+function aiMsg(html,kind=''){ $('#aiOut').innerHTML=html?`<div class="aimsg ${kind}">${html}</div>`:''; }
+function aiQuotaLine(q){ return q&&Number.isFinite(+q.remaining)&&Number.isFinite(+q.cap)?`<span class="aiquota" id="aiQuota">${+q.remaining} of ${+q.cap} drafts left this month</span>`:''; }
+function aiResetDate(iso){ const d=new Date(iso); return isNaN(d)?'the 1st of next month':d.toLocaleDateString(undefined,{month:'long',day:'numeric',timeZone:'UTC'}); }
+// Resize for the AI: <=768px JPEG and <=AI_IMG_MAX_BYTES (server refuses >300 KB). Returns base64 without the data: prefix.
+async function aiPrepPhoto(blob){
+  for(const px of [AI_IMG_PX,640,512,400]) for(const q of [0.82,0.7,0.6,0.5]){
+    const b=await resizeImage(blob,px,q);
+    if(b.size<=AI_IMG_MAX_BYTES){ const d=await blobToDataURL(b); return {data:d.slice(d.indexOf(',')+1), bytes:b.size}; }
+  }
+  throw new Error('photo_too_big');
+}
+function aiHints(){
+  const h={}, map={brand:'brand',size:'size',color:'color',material:'material',flaws:'flaws',pit:'pit',length:'length',waist:'waist'};
+  for(const [n,k] of Object.entries(map)){ const el=aiField(n); if(el&&el.value.trim()&&!EDIT.aiFilled.has(n)) h[k]=el.value.trim().slice(0,200); }
+  for(const n of AI_SELECT){ if(!aiIsEmpty(n)&&!EDIT.aiFilled.has(n)) h[n]=aiField(n).value; }
+  return h;
+}
+// Sign in for AI: quiet refresh for the account she already picked, else Google's button (account chooser).
+async function aiIdToken(){
+  if(IdAuth.valid()) return IdAuth.cred;
+  if(IdAuth.hint()){ try{ return await IdAuth.silent(); }catch(e){} }
+  aiMsg(`<b>Sign in with Google to use AI drafts.</b> Pick the Google account you want to use. Then the draft starts by itself.`);
+  try{ return await IdAuth.button($('#aiGsi')); } finally { $('#aiGsi').innerHTML=''; }
+}
+const AI_ERR={
+  401:()=>`<b>Please sign in with Google again.</b> Your sign-in ran out. Tap <b>Draft with AI</b> again to sign in.`,
+  402:()=>`<b>AI drafts are part of Hanger Hustle Plus.</b> Plus isn\u2019t turned on for this account yet. You can still fill in the item yourself, just like always.`,
+  403:()=>`<b>AI drafts only work in the Hanger Hustle app</b> at app.hangerhustle.com.`,
+  413:()=>`<b>A photo was too big to send.</b> Try again with fewer photos, or different ones.`,
+  400:()=>`<b>The AI couldn\u2019t read these photos.</b> Try different photos (JPEG or PNG work best).`,
+  503:()=>`<b>AI drafts are paused for now.</b> Please try again later. Your item is safe, and you can keep filling it in yourself.`,
+  502:()=>`<b>The AI couldn\u2019t write this one.</b> Please tap Draft with AI to try again. This one didn\u2019t count against your drafts.`,
+};
+function aiErrorHTML(status,body){
+  if(status===429){
+    if(body&&body.error==='slow_down'){ const s=Math.max(5,Math.min(600,+body.retryAfter||60)); return `<b>Whoa, that\u2019s a lot of drafts in a row.</b> Please wait about ${s>=90?Math.round(s/60)+' minutes':s+' seconds'}, then try again.`; }
+    const q=body&&body.quota||{}; return `<b>You\u2019ve used all ${+q.cap||300} AI drafts for this month.</b> They come back on ${esc(aiResetDate(q.resetsAt))}. You can still fill in items yourself.`;
+  }
+  return (AI_ERR[status]||(()=>`<b>Something went wrong (error ${+status||'?'}).</b> Please try again in a minute.`))();
+}
+async function aiDraft(){
+  if(EDIT.aiBusy) return;
+  const btn=$('#aiBtn');
+  if(!EDIT.photos.length){ aiMsg(`<b>Add a photo first.</b> Take a photo or pick one from your gallery, then tap Draft with AI.`,'err'); return; }
+  EDIT.aiBusy=true; btn.disabled=true; $('#aiQs').innerHTML='';
+  try{
+    let tok;
+    try{ tok=await aiIdToken(); }
+    catch(e){ aiMsg(`<b>Not signed in.</b> ${esc(e.message||'Google sign-in did not finish.')} Tap Draft with AI to try again.`,'err'); return; }
+    aiMsg(`<span class="aispin" aria-hidden="true"></span><b>Writing your draft\u2026</b> This takes about 10 seconds.`);
+    let images;
+    try{ images=[]; for(const p of EDIT.photos.slice(0,AI_MAX_PHOTOS)){ const r=await aiPrepPhoto(p.blob); images.push({data:r.data}); } }
+    catch(e){ aiMsg(AI_ERR[413](),'err'); return; }
+    let r, body=null;
+    try{
+      const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),AI_TIMEOUT_MS);
+      try{ r=await fetch(AI_URL+'/draft',{method:'POST',headers:{'content-type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify({images,hints:aiHints()}),signal:ctl.signal}); }
+      finally{ clearTimeout(t); }
+      try{ body=await r.json(); }catch(e){ body=null; }
+    }catch(e){ aiMsg(`<b>Couldn\u2019t reach the AI.</b> Check your internet connection and try again.`,'err'); return; }
+    if(r.status===401){ IdAuth.cred=null; IdAuth.exp=0; }
+    if(!r.ok||!body||!body.draft){ aiMsg(aiErrorHTML(r.ok?502:r.status,body)+(body&&body.quota?aiQuotaLine(body.quota):''),'err'); return; }
+    aiApply(body);
+  } finally { EDIT.aiBusy=false; btn.disabled=false; }
+}
+function aiApply(res){
+  const d=res.draft||{}, filled=[], unk=v=>!v||/^unknown$/i.test(String(v).trim());
+  const tryFill=(n,val)=>{ if(aiIsEmpty(n)&&aiSet(n,val)) filled.push(AI_LABEL[n]); };
+  if(!unk(d.brand)&&/visible/.test(d.brand_evidence||'')) tryFill('brand',d.brand);
+  if(TYPES.includes(d.type)) tryFill('type',d.type);
+  if(ERAS.includes(d.era)) tryFill('era',d.era_confidence==='low'?'Unknown':d.era);
+  if(CONDITIONS.some(c=>c[0]===d.condition)) tryFill('condition',d.condition);
+  if(!unk(d.size)) tryFill('size',d.size);
+  if(!unk(d.color)) tryFill('color',d.color);
+  if(!unk(d.material)) tryFill('material',d.material);
+  if(Array.isArray(d.keywords)&&d.keywords.length) tryFill('keywords',d.keywords.join(', '));
+  if(Array.isArray(d.flaws_seen)&&d.flaws_seen.length) tryFill('flaws',d.flaws_seen.join('; '));
+  if(d.title) tryFill('aiTitle',cleanTitle(d.title));
+  if(d.description) tryFill('aiDesc',cleanText(d.description));
+  let priceHTML='';
+  const pr=d.price; if(pr&&Number.isFinite(+pr.low)&&Number.isFinite(+pr.high)){ const mid=Math.round((+pr.low+ +pr.high)/2);
+    priceHTML=`<br>AI price guess: <b>$${+pr.low}\u2013$${+pr.high}</b>${pr.reason?` (${esc(pr.reason)})`:''}. ${aiIsPriceEmpty()?`<button type="button" class="btn sm" id="aiUsePrice" data-p="${mid}">Use $${mid}</button>`:''}`; }
+  const kept=[...AI_TEXT,...AI_SELECT].filter(n=>!aiIsEmpty(n)&&!EDIT.aiFilled.has(n)&&aiField(n)&&(AI_SELECT.includes(n)||aiField(n).value.trim())).length;
+  aiMsg(`\u2728 <b>${filled.length?`Filled ${filled.length} empty box${filled.length===1?'':'es'}:`:'Nothing to fill: every box already had something in it.'}</b> ${esc(filled.join(', '))}${filled.length?'.':''}`
+    +`${kept?` Kept everything you typed.`:''} Yellow boxes came from the AI: please check them before saving.${priceHTML}${aiQuotaLine(res.quota)}`,'ok');
+  const up=$('#aiUsePrice'); if(up) up.onclick=()=>{ if(aiIsPriceEmpty()){ aiSet('price',up.dataset.p); toast('Price set to $'+up.dataset.p); } up.remove(); };
+  aiQuestions(Array.isArray(res.questions)?res.questions:[]);
+}
+function aiIsPriceEmpty(){ const el=aiField('price'); return !!el&&!el.value.trim(); }
+function aiQuestions(qs){
+  const box=$('#aiQs'); box.innerHTML='';
+  if(!qs.length) return;
+  box.innerHTML=`<p class="note" style="font-size:var(--fs-body);color:var(--ink);font-weight:600;margin:4px 0 0">A few quick questions (tap an answer):</p>`+qs.map((q,i)=>`<div class="qcard" data-q="${i}"><p class="qq">${esc(q.question)}</p>
+    <div class="qo">${(q.options||[]).map((o,j)=>`<button type="button" class="chip" data-qi="${i}" data-oi="${j}">${esc(o)}</button>`).join('')}</div></div>`).join('');
+  box.onclick=e=>{ const b=e.target.closest('[data-qi]'); if(!b) return; const q=qs[+b.dataset.qi], ans=q.options[+b.dataset.oi];
+    const note=aiAnswer(q,ans); const card=b.closest('.qcard'); card.classList.add('done');
+    card.querySelector('.qo').outerHTML=`<p class="qa">\u2713 ${esc(ans)}${note?` \u00b7 ${esc(note)}`:''}</p>`; };
+}
+// A tapped answer is her choice: it fills empty or AI-filled boxes, never a box she typed in herself.
+function aiAnswer(q,ans){
+  const f=q.field, a=String(ans||'').trim(), can=n=>aiIsEmpty(n)||EDIT.aiFilled.has(n);
+  const put=n=>{ if(!can(n)) return 'kept what you typed'; aiSet(n,a); return 'added'; };
+  if(AI_NOT_SURE.test(a)){
+    if(['pit','length','waist'].includes(f)){ const el=aiField(f); if(el){ try{ el.focus({preventScroll:false}); }catch(e){} } return 'fill it in when you can'; }
+    return 'skipped';
+  }
+  if(['pit','length','waist'].includes(f)){ const m=a.match(/\d+(?:\.\d+)?/); if(!m) return 'skipped'; if(!can(f)) return 'kept what you typed'; aiSet(f,m[0]); return 'added'; }
+  if(f==='size'||f==='material'||f==='brand'){
+    if(/^(yes|no)\b/i.test(a)){ if(/^yes/i.test(a)){ const el=aiField(f); if(el){ try{ el.focus(); }catch(e){} } return 'type it in the '+AI_LABEL[f]+' box'; } return 'noted'; }
+    return put(f); }
+  if(f==='era'){ const k=a.replace(/^(?:19)?(\d0)'?s$/i,'$1s').replace(/^y2k$/i,'Y2K'); const e=ERAS.find(x=>x.toLowerCase()===k.toLowerCase()); if(!e) return 'skipped'; if(!can('era')) return 'kept what you picked'; aiSet('era',e); return 'added'; }
+  if(f==='condition'){ const c=/new with tags|nwt/i.test(a)?'nwt':/very good/i.test(a)?'verygood':/excellent|like new/i.test(a)?'excellent':/\bgood\b/i.test(a)?'good':/fair|worn/i.test(a)?'fair':'';
+    if(!c) return 'skipped'; if(!can('condition')) return 'kept what you picked'; aiSet('condition',c); return 'added'; }
+  // flaws + other: added to Flaws / notes (appended, never replacing)
+  if(f==='flaws'&&/^(no|none)\b|no flaws|no stains|no holes|perfect/i.test(a)) return 'noted';
+  const el=aiField('flaws'); if(!el) return 'skipped';
+  const line=f==='flaws'?a:`${q.question.replace(/\?+$/,'')}: ${a}`; el.value=el.value.trim()?el.value.trim().replace(/[;.]?$/,'; ')+line:line;
+  if(!EDIT.touched.has('flaws')){ el.classList.add('aifill'); EDIT.aiFilled.add('flaws'); }
+  return 'added to flaws / notes';
 }
 
 /* ---------- Item detail: listings, status, comps ---------- */
@@ -1603,13 +1779,60 @@ const Auth = {
   clearSession(){ this.token=null; this.exp=0; this.profile=null; this.silentTried=false; try{ localStorage.removeItem(AUTH_KEY); }catch(e){} },
   signOut(){
     try{ if(this.token&&window.google&&google.accounts&&google.accounts.oauth2) google.accounts.oauth2.revoke(this.token,()=>{}); }catch(e){}
-    this.clearSession();
+    this.clearSession(); try{ IdAuth.signOut(); }catch(e){}
   },
   // Switch: drop the current token (not revoked, so picking the same account again can't race a revoke) and reopen the chooser.
   // If she closes the chooser, the previous account stays signed in.
   async switchAccount(){ const prev={token:this.token,exp:this.exp,profile:this.profile}; this.clearSession();
     try{ await this.signIn(); }catch(e){ Object.assign(this,prev); this.save(); e.restored=!!prev.profile; throw e; }
     return {prev:prev.profile,now:this.profile}; }
+};
+
+/* ---- Sign in with Google for AI drafts (ID token) ----
+   The Drive sign-in above (token client) only gives an *access* token. The AI server needs an *ID token* (JWT, about 1 hour)
+   from Sign in with Google (google.accounts.id), same client id. Account rules (Michael, 2026-10-21 6:44 PM CT) kept:
+   - The first sign-in (and Switch) is Google's own "Sign in with Google" button: its window shows the account chooser.
+   - Quiet refresh only for the account she already picked (auto_select + login_hint), and the answer must be that same
+     account; anything else falls back to the button. The ID token stays in memory only (never saved). */
+const AI_ACCT_KEY='ctc-ai-account';
+const IdAuth = {
+  cred:null, exp:0, email:'',
+  hint(){ try{ return localStorage.getItem(AI_ACCT_KEY)||''; }catch(e){ return ''; } },
+  valid(){ return !!this.cred && Date.now() < this.exp-5*60000; },
+  decode(jwt){ const p=String(jwt||'').split('.')[1]||''; const b=atob(p.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(p.length/4)*4,'='));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(b,c=>c.charCodeAt(0)))); },
+  accept(cred,expectEmail){
+    let c; try{ c=this.decode(cred); }catch(e){ throw new AuthNeeded('Google sign-in answer could not be read. Please try again.'); }
+    if(c.aud!==GOOGLE_CLIENT_ID) throw new AuthNeeded('Google sign-in was for a different app. Please try again.');
+    if(expectEmail && String(c.email||'').toLowerCase()!==expectEmail.toLowerCase()) throw new AuthNeeded('Google answered with a different account.');
+    this.cred=cred; this.exp=(+c.exp||0)*1000||Date.now()+3600000; this.email=c.email||'';
+    try{ if(this.email) localStorage.setItem(AI_ACCT_KEY,this.email); }catch(e){}
+    return cred;
+  },
+  init(cb,hint){ const cfg={client_id:GOOGLE_CLIENT_ID, callback:cb, auto_select:!!hint, cancel_on_tap_outside:false, itp_support:true, use_fedcm_for_prompt:true, context:'signin'};
+    if(hint) cfg.login_hint=hint; google.accounts.id.initialize(cfg); },
+  // Quiet refresh for the account she already picked. Rejects if Google can't do it without asking.
+  async silent(){
+    const hint=this.hint(); if(!hint) throw new AuthNeeded('Not signed in for AI drafts yet');
+    await Auth.loadGis();
+    return new Promise((res,rej)=>{
+      let done=false; const fin=(f,v)=>{ if(!done){ done=true; clearTimeout(t); if(f===rej){ try{ google.accounts.id.cancel(); }catch(e){} } f(v); } };
+      this.init(r=>{ try{ fin(res,this.accept(r&&r.credential,hint)); }catch(e){ fin(rej,e); } },hint);
+      try{ google.accounts.id.prompt(n=>{ try{
+        if((n.isNotDisplayed&&n.isNotDisplayed())||(n.isSkippedMoment&&n.isSkippedMoment())||(n.isDismissedMoment&&n.isDismissedMoment()&&n.getDismissedReason&&n.getDismissedReason()!=='credential_returned'))
+          fin(rej,new AuthNeeded('Quiet sign-in not available')); }catch(e){} }); }catch(e){ fin(rej,new AuthNeeded('Quiet sign-in not available')); }
+      const t=setTimeout(()=>fin(rej,new AuthNeeded('Google sign-in timed out')),20000);
+    });
+  },
+  // Google's own button (opens the account chooser). Resolves when she has picked an account.
+  async button(el){
+    await Auth.loadGis();
+    return new Promise((res,rej)=>{
+      this.init(r=>{ try{ res(this.accept(r&&r.credential,'')); }catch(e){ rej(e); } },'');
+      el.innerHTML=''; google.accounts.id.renderButton(el,{type:'standard',theme:'filled_blue',size:'large',text:'signin_with',shape:'pill',logo_alignment:'left',width:Math.max(200,Math.min(340,el.clientWidth||300))});
+    });
+  },
+  signOut(){ this.cred=null; this.exp=0; this.email=''; try{ localStorage.removeItem(AI_ACCT_KEY); }catch(e){} try{ if(window.google&&google.accounts&&google.accounts.id) google.accounts.id.disableAutoSelect(); }catch(e){} }
 };
 
 /* ---- Drive REST v3 helpers ---- */

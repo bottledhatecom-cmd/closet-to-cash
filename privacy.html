@@ -11,19 +11,28 @@ main{max-width:680px;margin:0 auto;padding:24px 18px 48px}h1,h2{font-family:Geor
 <p>Hanger Hustle is a small web app that helps a vintage clothing reseller keep track of items and write listings. This page explains what happens to your information.</p>
 
 <h2>Where your data is stored</h2>
-<p>Your items, photos, prices and notes are stored <b>on your own device</b>, in your browser's storage. They are not sent to us. We don't run a server that holds your inventory.</p>
+<p>Your items, photos, prices and notes are stored <b>on your own device</b>, in your browser's storage. They are not sent to us (the one exception is the photos you choose for an AI draft, see <a href="#ai">AI drafts</a> below). We don't run a server that holds your inventory.</p>
 <p>If you choose <b>Sign in with Google</b>, the app also saves a backup copy of your items and photos in a <b>hidden app folder in your own Google Drive</b> (Google's "appDataFolder"). Only this app can read that folder. We, the developers, can't see it.</p>
 
 <h2>What the app asks Google for</h2>
 <ul>
 <li><b>Basic profile</b> (<code>openid</code>, <code>email</code>, <code>profile</code>): your name, email address and profile picture, to show who is signed in.</li>
+<li><b>Sign in with Google for AI drafts</b>: an ID token that proves which Google account you picked, sent only to the Hanger Hustle AI server when you ask for an AI draft. It stays in the app's memory and isn't saved.</li>
 <li><b>Google Drive app data</b> (<code>drive.appdata</code>): to create, read, update and delete the app's own backup files in that hidden folder. The app <b>can't</b> see or change your other Google Drive files.</li>
 </ul>
 <p>Your Google sign-in token stays in your browser on your device. You can sign out in the app at any time, and you can remove the app's access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To delete the backup itself, open Google Drive → Settings → Manage apps → Hanger Hustle → "Delete hidden app data".</p>
 <p>The app's use of information received from Google APIs follows the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
+<h2 id="ai">AI drafts (Draft with AI, Hanger Hustle Plus)</h2>
+<p>AI drafts are optional and only happen when you tap <b>Draft with AI</b>. Then:</p>
+<ul>
+<li><b>The photos you choose for an AI draft</b> (up to 4, made smaller first) and the details you already typed for that item (like brand or size) are sent over an encrypted connection to the Hanger Hustle AI server, which passes them to <b>Google Gemini</b> to write the draft. They are <b>not stored by Hanger Hustle</b>: the server keeps no copy of your photos or the draft.</li>
+<li>To use AI drafts you sign in with Google. The app sends Google's sign-in proof (an ID token) to the AI server so it can check who you are and whether your account has Plus. The server keeps only a count of how many drafts your account used this month (to apply the monthly limit), filed under a scrambled code made from your Google account ID, not your name or email.</li>
+<li>Google processes the photos under its Gemini API terms. You can always skip AI drafts and fill in items yourself.</li>
+</ul>
+
 <h2>What we don't do</h2>
-<ul><li>No ads and no ad tracking.</li><li>We don't sell, rent or share your data.</li><li>No analytics or tracking scripts.</li></ul>
+<ul><li>No ads and no ad tracking.</li><li>We don't sell, rent or share your data (apart from the AI draft photos you choose to send to Google Gemini, above).</li><li>No analytics or tracking scripts.</li></ul>
 
 <h2>Links to other sites</h2>
 <p>Buttons like "Open Poshmark" or "Search sold comps" open other websites (Poshmark, eBay, Depop, Vinted, Mercari, Etsy and others). Those sites have their own privacy policies. The app doesn't send your data to them; you choose what to paste or upload.</p>
