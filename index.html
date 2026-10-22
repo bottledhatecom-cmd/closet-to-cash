@@ -349,7 +349,7 @@ const CONDITIONS = [['nwt','New with tags'],['excellent','Excellent'],['verygood
 const POST_MODES = {
   api:      {label:'Bot posts (official API)',          short:'Bot \u00b7 API'},
   crosslist:{label:'Bot posts (allowed crosslisting)',  short:'Bot \u00b7 crosslist'},
-  prefill:  {label:'She publishes (pre-filled)',        short:'You publish'},
+  prefill:  {label:'You publish (pre-filled)',        short:'You publish'},
 };
 /* Character limits: approximations; marketplaces change these. null = no meaningful limit.
    on = shown by default (she can toggle sites in Settings). */
@@ -362,7 +362,7 @@ const PLATFORMS = {
   vinted:  {name:'Vinted',   short:'Vt', color:'#007782', create:'https://www.vinted.com/items/new',  titleMax:100, descMax:2000, mode:'prefill', on:true},
   mercari: {name:'Mercari',  short:'Mc', color:'#5356ee', create:'https://www.mercari.com/sell/',     titleMax:80, descMax:1000, mode:'prefill', on:true},
   etsy:    {name:'Etsy',     short:'Et', color:'#f1641e', create:'https://www.etsy.com/your/shops/me/listing-editor/create', titleMax:140, descMax:null, tagsMax:13, tagLen:20, mode:'api', on:true,
-            modeNote:'Bot will post through Etsy\u2019s official Open API v3 once Michael registers an Etsy app for her shop. Etsy \u201cvintage\u201d = at least 20 years old.'},
+            modeNote:'Bot will post through Etsy\u2019s official Open API v3 once Michael registers an Etsy app for your shop. Etsy \u201cvintage\u201d = at least 20 years old.'},
   facebook:{name:'FB Marketplace', short:'FB', color:'#1877f2', create:'https://www.facebook.com/marketplace/create/item', titleMax:100, descMax:null, mode:'prefill', on:false,
             modeNote:'No listing API for individuals and Meta bans automated access, so you publish it. Great for local pickup (no fee).'},
   grailed: {name:'Grailed',  short:'Gr', color:'#111111', create:'https://www.grailed.com/sell', titleMax:60, descMax:null, mode:'prefill', on:false,
